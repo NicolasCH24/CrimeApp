@@ -4,22 +4,22 @@ from streamlit_option_menu import option_menu
 
 # MODULO MAPA
 from Módulos.modulo_map import folium_map
-from streamlit_folium import st_folium
     
 def main():
-    st.title("App BA Delito")
+    #st.title("App BA Delito")
 
     with st.sidebar:
         selected = option_menu('Menú', ['Mapa', 'Estadística'],
             icons=['map', 'bar-chart'], menu_icon='cast', default_index=1)
 
     if selected == 'Mapa':
-        col1, col2, col3 = st.columns([0.5,10,0.5])
+        col1, col2 = st.columns([5.3,20])
+        with col1:
+            st.image("C:/Users/20391117579/Dropbox/CrimeApp/Multimedia/image.png", width=350)
         with col2:
-            st.subheader("Mapa interactivo")
-            with st.container(border=True):
-                m = folium_map()
-                st_folium(m, height=700, width='100%')
+            st.title("Ciudad Autónoma de Buenos Aires")
+        map = folium_map()
+
     elif selected == 'Estadística':
             st.subheader('Estadística')
             st.write("Estadística")
