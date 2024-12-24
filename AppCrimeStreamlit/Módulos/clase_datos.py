@@ -9,6 +9,9 @@ from joblib import load
 # LOCALIZACION
 from geopy import Nominatim
 
+# BASE DE DATOS
+from sqlalchemy import create_engine
+
 # KMEANS
 kmeans = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/kmeans.joblib')
 scaler = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/scaler.joblib')
@@ -17,6 +20,13 @@ class Datos:
     def __init__(self):
         self.scaler = scaler
         self.kmeans = kmeans
+        self.hostname = "localhost"
+        self.dbname = "crimewarehouse"
+        self.uname = "root"
+        self.pwd = "admin1234"
+
+        self.engine = create_engine("mysql+pymysql://{user}:{pw}@{host}/{db}"
+				.format(host=self.hostname, db=self.dbname, user=self.uname, pw=self.pwd))
     
     def get_current_location(self, lat, lon):
         zonas_peligro = pd.read_csv("C:/Users/20391117579/Dropbox/CrimeApp/Datasets/Zona peligro/zona_puntaje.csv")
@@ -65,3 +75,10 @@ class Datos:
 
         return df_data
     
+    def get_df_by_query(self, query):
+        db = self.engine
+        df = pd.read_sql(query, db)
+
+        return df
+    
+## REALIZAR FUNCION PARA OBTENER TABLA DE DATOS
