@@ -4,12 +4,12 @@
   "settings": {
     "width": 2000,
     "height": 2000,
-    "scrollTop": -444.8912,
-    "scrollLeft": -201.7519,
+    "scrollTop": -457.8912,
+    "scrollLeft": -370.7519,
     "zoomLevel": 0.73,
     "show": 431,
     "database": 4,
-    "databaseName": "",
+    "databaseName": "crimewarehouse",
     "canvasType": "ERD",
     "language": 1,
     "tableNameCase": 4,
@@ -637,34 +637,6 @@
       }
     },
     "relationshipEntities": {
-      "M1uRSQfe_jCfxiSdBrnLu": {
-        "id": "M1uRSQfe_jCfxiSdBrnLu",
-        "identification": false,
-        "relationshipType": 16,
-        "startRelationshipType": 2,
-        "start": {
-          "tableId": "_4fv5l23EbcvPNDpE4Z0S",
-          "columnIds": [
-            "el_S27xsJ_rAoraKz5T0M"
-          ],
-          "x": 663.5398,
-          "y": 347.5237,
-          "direction": 2
-        },
-        "end": {
-          "tableId": "7oVH1USR8FhoKF2bGbFq6",
-          "columnIds": [
-            "UxWB8Wv5bEv8ustmMHLMZ"
-          ],
-          "x": 828.0508,
-          "y": 513.068,
-          "direction": 4
-        },
-        "meta": {
-          "updateAt": 1734006391834,
-          "createAt": 1734006391834
-        }
-      },
       "i2PVntoI0_O0O7bEy38Av": {
         "id": "i2PVntoI0_O0O7bEy38Av",
         "identification": false,
@@ -901,12 +873,6 @@
         "comment": 1734006391830
       }
     ],
-    "M1uRSQfe_jCfxiSdBrnLu": [
-      "relationshipEntities",
-      1734006391830,
-      1734006417522,
-      {}
-    ],
     "ztu3EQ22hOpE6S9vR1-hy": [
       "tableColumnEntities",
       1734006428049,
@@ -1046,6 +1012,14 @@
       1734006548359,
       -1,
       {}
+    ],
+    "settings.databaseName": [
+      "settings",
+      -1,
+      -1,
+      {
+        "databaseName": 1735042966606
+      }
     ]
   }
 }
