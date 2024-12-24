@@ -11,6 +11,9 @@ import plotly.graph_objects as go
 # TIEMPO
 from datetime import time
 
+# DATOS
+import pandas as pd
+
 # LOCALIZACION
 from Módulos.clase_datos import Datos
 
@@ -129,24 +132,31 @@ def dashboard(fig_table, fig_map):
             st.plotly_chart(fig_map, use_container_width=True)
 
 def container_map(m):
+    # DATOS GLOBALES
+## OBTENER TABLA DE DATOS Y GRAFICARLA CON FORMATO CONDICIONAL DEBAJO DEL MAPA
+    ## SI NO CABE, PROBAR CON "MADRUGADA, MAÑANA, TARDE Y NOCHE"
     # SESSIONS STATES
     if "location" not in st.session_state:
         st.session_state.location = None
 
-    with st.container(border=True):
-        destino = st.text_input("Ingresá destino aquí o agregar marcador en el mapa.")
-        franja_horaria = st.slider( "Seleccioná en qué momento del día vas a concurrir.",
-                                        value=(time(11,30)))
+    col1, col2 = st.columns([5, 10])
+    with col1:
+        with st.container(border=True):
+            destino = st.text_input("Ingresá destino aquí o agregar marcador en el mapa.")
+            franja_horaria = st.slider( "Seleccioná en qué momento del día vas a concurrir.",
+                                            value=(time(11,30)))
 
-        map = st_folium(m, width="%100", height=500)
-        if map.get("last_clicked"):
-            st.session_state.location = [map["last_clicked"]["lat"], map["last_clicked"]["lng"]]
-            with st.popover("Información", use_container_width=True):
-               if st.session_state["location"] == [map["last_clicked"]["lat"], map["last_clicked"]["lng"]]:
-                fig_table = graph_table(lat=map["last_clicked"]["lat"], lon=map["last_clicked"]["lng"])
-                fig_map = graph_mapa(lat=map["last_clicked"]["lat"], lon=map["last_clicked"]["lng"])
-                dashboard(fig_table, fig_map)
-                st.session_state.location = None
+    with col2:
+        with st.container(border=True):
+            map = st_folium(m, width="%100", height=500)
+            if map.get("last_clicked"):
+                st.session_state.location = [map["last_clicked"]["lat"], map["last_clicked"]["lng"]]
+                with st.expander("Información"):
+                    if st.session_state["location"] == [map["last_clicked"]["lat"], map["last_clicked"]["lng"]]:
+                        fig_table = graph_table(lat=map["last_clicked"]["lat"], lon=map["last_clicked"]["lng"])
+                        fig_map = graph_mapa(lat=map["last_clicked"]["lat"], lon=map["last_clicked"]["lng"])
+                        dashboard(fig_table, fig_map)
+                        st.session_state.location = None
 
 ## MEJORAR EL POPUP, U OBTENER OTRA FORMA DE GENERAR EL INFORME DETALLADO ACTUAL.
         
