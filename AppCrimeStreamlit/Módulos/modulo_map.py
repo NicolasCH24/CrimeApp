@@ -11,9 +11,6 @@ import plotly.graph_objects as go
 # TIEMPO
 from datetime import time
 
-# DATOS
-import pandas as pd
-
 # LOCALIZACION
 from Módulos.clase_datos import Datos
 
@@ -133,18 +130,36 @@ def dashboard(fig_table, fig_map):
 
 def container_map(m):
     # DATOS GLOBALES
-## OBTENER TABLA DE DATOS Y GRAFICARLA CON FORMATO CONDICIONAL DEBAJO DEL MAPA
-    ## SI NO CABE, PROBAR CON "MADRUGADA, MAÑANA, TARDE Y NOCHE"
+    clase_datos = Datos()
+    _df = clase_datos.get_df_by_query(query="""
+                                        SELECT
+                                        FECHA,
+                                        FRANJA_HORARIA,
+                                        CONTACTO_ID
+                                        FROM
+                                        FCT_HECHOS
+                                        WHERE YEAR(FECHA) = (SELECT MAX(YEAR(FECHA)) FROM FCT_HECHOS)
+                                        GROUP BY
+                                        FECHA, FRANJA_HORARIA, CONTACTO_ID
+                                        ORDER BY
+                                        FECHA;
+                                        """)
+    df_table = clase_datos.get_data_table(_df)
+
     # SESSIONS STATES
     if "location" not in st.session_state:
         st.session_state.location = None
 
-    col1, col2 = st.columns([5, 10])
+    col1, col2 = st.columns([10, 10])
     with col1:
         with st.container(border=True):
             destino = st.text_input("Ingresá destino aquí o agregar marcador en el mapa.")
             franja_horaria = st.slider( "Seleccioná en qué momento del día vas a concurrir.",
                                             value=(time(11,30)))
+            styled_df = df_table.style.background_gradient(
+                cmap="YlOrBr", axis=None
+            )
+            st.dataframe(styled_df, use_container_width=True, on_select="ignore")
 
     with col2:
         with st.container(border=True):
@@ -158,5 +173,7 @@ def container_map(m):
                         dashboard(fig_table, fig_map)
                         st.session_state.location = None
 
-## MEJORAR EL POPUP, U OBTENER OTRA FORMA DE GENERAR EL INFORME DETALLADO ACTUAL.
+## MEJORAR SPANDER CON ST.DATAFRAME Y UN MINMAP DEL BARRIO/ZONA EN CUESTION CON ALGUN FORMATO CONDICIONAL
+
+## CREAR CLASE DE MODULO MAPA EN ESTE ARCHIVO --- PRIMERO LAS FUNCIONES --- SEGUNDO EL CONTAINER
         
