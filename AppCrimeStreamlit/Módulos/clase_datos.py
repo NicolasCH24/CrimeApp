@@ -3,6 +3,9 @@ import pandas as pd
 from datetime import datetime
 import pytz
 
+# STREAMLIT
+import streamlit as st
+
 # MODELADO
 from joblib import load
 
@@ -12,9 +15,18 @@ from geopy import Nominatim
 # BASE DE DATOS
 from sqlalchemy import create_engine
 
+# CONFIGURACION LOCA
+import locale
+locale.setlocale(locale.LC_TIME, 'es_ES')
+
 # KMEANS
-kmeans = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/kmeans.joblib')
-scaler = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/scaler.joblib')
+@st.cache_resource()
+def load_models():
+    kmeans = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/kmeans.joblib')
+    scaler = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/scaler.joblib')
+    return kmeans, scaler
+
+kmeans, scaler = load_models()
 
 class Datos:
     def __init__(self):
@@ -75,10 +87,39 @@ class Datos:
 
         return df_data
     
-    def get_df_by_query(self, query):
-        db = self.engine
+    @st.cache_data
+    def get_df_by_query(_self, query):
+        db = _self.engine
         df = pd.read_sql(query, db)
+        print("ejecutando query")
 
         return df
     
-## REALIZAR FUNCION PARA OBTENER TABLA DE DATOS
+    @staticmethod
+    @st.cache_data
+    def get_data_table(_df):
+        # Configuración local
+        # DF Table data
+        print("obteniendo tabla")
+        _df['FECHA'] = pd.to_datetime(_df['FECHA'])
+        _df['DIA_SEMANA'] = _df['FECHA'].dt.strftime("%A")
+
+        df_data = pd.DataFrame(
+            {'CONTACTO_ID':_df['CONTACTO_ID'].values,
+             'Dia semana':_df['DIA_SEMANA'].values,
+             'Hora':_df['FRANJA_HORARIA'].values}
+        )
+
+        orden_dias = ['lunes','martes','miércoles','jueves','viernes','sábado','domingo']
+        df_data['Dia semana'] = pd.Categorical(_df['DIA_SEMANA'], categories=orden_dias, ordered=True)
+
+        df_table = df_data.pivot_table(
+            index = 'Hora',
+            columns ='Dia semana',
+            values = 'CONTACTO_ID',
+            aggfunc ='count',
+            fill_value=0,
+            observed=False
+        )
+
+        return df_table
