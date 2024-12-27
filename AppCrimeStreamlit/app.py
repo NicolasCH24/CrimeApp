@@ -3,9 +3,10 @@ import streamlit as st
 from streamlit_option_menu import option_menu
 
 # MODULO MAPA
-from Módulos.modulo_map import folium_map, container_map
+from Módulos.modulo_map import ModuloMap
     
 def main():
+    modulo_mapa = ModuloMap()
     st.set_page_config(
         page_title="App BA Delito",
         page_icon=":chart_with_upwards_trend:",
@@ -23,9 +24,9 @@ def main():
         with col2:
             st.title("Ciudad Autónoma de Buenos Aires")
 
-    # CONTAINER MAP
-        m = folium_map()
-        modulo_mapa = container_map(m)
+    # CONTAINER MODULO MAPA
+        m = modulo_mapa.folium_map()
+        modulo_mapa = modulo_mapa.container_map(m)
 
     elif selected == 'Estadística':
             st.subheader('Estadística')
@@ -33,6 +34,5 @@ def main():
 
     # CONTAINER ESTADISTICA
 
-        
 if __name__ == "__main__":
     main()
