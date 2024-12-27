@@ -123,3 +123,55 @@ class Datos:
         )
 
         return df_table
+    
+    def get_actual_location_table(self, lat, lon):
+        # Localizacion actual
+        df_data = self.get_current_location(lat, lon)
+        comuna = df_data['Comuna'].values[0]
+        comuna = comuna.upper()
+        barrio = df_data['Barrio'].values[0]
+        barrio = barrio.upper()
+    
+        # Obtenemos datos
+        query = """
+            SELECT
+                fct.FECHA, fct.FRANJA_HORARIA, dimc.COMUNA_DESC, dimb.BARRIO_DESC, fct.CONTACTO_ID
+            FROM
+                FCT_HECHOS fct
+            JOIN
+                DIM_BARRIOS dimb
+            ON
+                fct.BARRIO_KEY = dimb.BARRIO_KEY
+            JOIN
+                DIM_COMUNAS dimc
+            ON
+                fct.COMUNA_KEY = dimc.COMUNA_KEY
+            WHERE
+                YEAR(FECHA) = (SELECT MAX(YEAR(FECHA)) FROM FCT_HECHOS)
+                AND dimc.COMUNA_DESC = %(comuna)s
+                AND dimb.BARRIO_DESC = %(barrio)s
+            GROUP BY
+                FECHA, COMUNA_DESC, BARRIO_DESC, CONTACTO_ID
+            ORDER BY
+                FECHA;
+            """
+
+            # Ejecutar consulta con parámetros
+        df_db = pd.read_sql(query, self.engine, params={"comuna": comuna, "barrio": barrio})
+        
+        df_db['FECHA'] = pd.to_datetime(df_db['FECHA'])
+        df_db['MES'] = df_db['FECHA'].dt.strftime("%b")
+
+        df_tabla = pd.DataFrame(
+            {
+                'Fecha':[df_data['Fecha'].values[0]],
+                'Hora': [df_data['Franja Horaria'].values[0]],
+                'Comuna':[comuna],
+                'Barrio':[barrio],
+                'Zona 10':[df_data['ZonaPeligroIndice'].values[0]],
+                barrio:[df_db.groupby('MES').agg({'CONTACTO_ID':'count'}).values.flatten().tolist()],
+                'Franja horaria':[df_db.groupby('FRANJA_HORARIA').agg({'CONTACTO_ID':'count'}).values.flatten().tolist()]
+            }
+        )
+
+        return df_tabla
