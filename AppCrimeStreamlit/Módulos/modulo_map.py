@@ -70,8 +70,11 @@ class ModuloMap:
         m.add_child(AddMarkerOnClick())
         return m
 
-    def graph_table(self, lat, lon):
-        df_table = self.clase_datos.get_actual_location_table(lat, lon)
+    @staticmethod
+    @st.cache_resource
+    def graph_table(_lat, _lon):
+        clase_datos = Datos()
+        df_table = clase_datos.get_actual_location_table(_lat, _lon)
         barrio = df_table["Barrio"].values[0]
         barrio = barrio.upper()
         tabla = st.dataframe(
@@ -93,11 +96,13 @@ class ModuloMap:
             )
         
         return tabla
- 
-    def graph_mapa(self, lat, lon):
+    
+    @staticmethod
+    @st.cache_resource
+    def graph_mapa(_lat, _lon):
         fig_map = go.Figure(go.Scattermapbox(
-        lat=[lat],
-        lon=[lon],
+        lat=[_lat],
+        lon=[_lon],
         mode='markers',
         ))
 
@@ -106,10 +111,51 @@ class ModuloMap:
             margin=dict(t=0, l=0, r=0, b=0),
             mapbox_style="open-street-map",  # Estilo del mapa
             mapbox_zoom=14,  # Nivel de zoom
-            mapbox_center={"lat": lat, "lon": lon},  # Centro del mapa
+            mapbox_center={"lat": _lat, "lon": _lon},  # Centro del mapa
         )
         return fig_map
+    
+    def graph_new_table(self, _lat, _lon):
+        clase_datos = Datos()
+        df_table = clase_datos.get_actual_location_table(_lat, _lon)
+        barrio = df_table["Barrio"].values[0]
+        barrio = barrio.upper()
+        tabla = st.dataframe(
+                df_table,
+                width=1000,
+                column_config={
+                    barrio: st.column_config.LineChartColumn(
+                        "Contactos por mes",
+                        help="Historial de contactos mensuales",
+                        y_min=0,
+                    ),
+                    "Franja horaria": st.column_config.LineChartColumn(
+                        "Contactos por franja horaria",
+                        help="Historial de contactos por franja horaria",
+                        y_min=0,
+                    ),
+                },
+                hide_index=True,
+            )
+        
+        return tabla
+    
+    def graph_new_mapa(self, _lat, _lon):
+        fig_map = go.Figure(go.Scattermapbox(
+        lat=[_lat],
+        lon=[_lon],
+        mode='markers',
+        ))
 
+        # Configurar el layout del mapa
+        fig_map.update_layout(
+            margin=dict(t=0, l=0, r=0, b=0),
+            mapbox_style="open-street-map",  # Estilo del mapa
+            mapbox_zoom=14,  # Nivel de zoom
+            mapbox_center={"lat": _lat, "lon": _lon},  # Centro del mapa
+        )
+        return fig_map
+ 
     # DASHBOARD
     def dashboard(self, tabla, fig_map):
         col1 = st.columns([1])
@@ -123,7 +169,13 @@ class ModuloMap:
             with st.container(border=True):
                 st.plotly_chart(fig_map, use_container_width=True)
 
-    # CONTAINER
+    # CONTAINER DE SELECCION DE UBICACION & CONTAINER DE DASHBORD INFORMATIVO
+    def container_dashboard(self, _lat, _lon):
+        tabla = self.graph_new_table(_lat, _lon)
+        fig_map = self.graph_new_mapa(_lat, _lon)
+        with st.container(border=True):
+            dashboard = self.dashboard(tabla, fig_map)
+
     def container_map(self, m):
         # DATOS GLOBALES
         _df = self.clase_datos.get_df_by_query(query="""
@@ -141,12 +193,10 @@ class ModuloMap:
                                             """)
         df_table = self.clase_datos.get_data_table(_df)
 
-        # SESSIONS STATES
-        if "prev_location" not in st.session_state:
-            st.session_state.prev_location = None
-
-        if "dashboard" not in st.session_state:
-            st.session_state.dashboard = None
+        # MODULO MAP
+        # SESSION STATES
+        if "selected_location" not in st.session_state:
+            st.session_state.selected_location = None
 
         col1, col2 = st.columns([10, 5.5])
         with col1:
@@ -160,23 +210,13 @@ class ModuloMap:
 
         with col2:
             with st.container(border=True, height=663):
-                map = st_folium(m, width="%100", height=620, use_container_width=False)
+                st.write("Selecciona un punto en el mapa.")
+                map = st_folium(m, width="%100", height=590, use_container_width=False)
                 if map.get("last_clicked"):
-                    lat = map["last_clicked"]["lat"]
-                    lon = map["last_clicked"]["lng"]
-                    current_location = [lat, lon]
-                else:
-                    current_location = None
+                    _lat = map["last_clicked"]["lat"]
+                    _lon = map["last_clicked"]["lng"]
+                    st.session_state.selected_location = [_lat, _lon]
+                    st.rerun()
 
-        with st.expander("Información"):
-            tabla = self.graph_table(lat, lon)
-            fig_map = self.graph_mapa(lat, lon)
-            if st.session_state.prev_location != current_location:
-                st.session_state.prev_location = current_location
-                dashboard = self.dashboard(tabla, fig_map)
-            else:
-                dashboard = self.dashboard(tabla, fig_map)
-
-## RESOLVER ACTUALIZACION CADA QUE SE INTERACTUA CON EL MAPA, VER DE ALMANCENAR EN CACHE Y RESSTABLECERLO AL CAMBIAR COORDENADAS SOLAMENTE.
 
         
