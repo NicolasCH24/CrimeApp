@@ -95,6 +95,7 @@ class Datos:
 
         return df
     
+    # TABLA CONSTANTE DE GRILLA HORARIA
     @staticmethod
     @st.cache_data
     def get_data_table(_df):
@@ -123,10 +124,11 @@ class Datos:
         )
 
         return df_table
-    
+
     def get_actual_location_table(self, lat, lon):
+        clase_datos = Datos()
         # Localizacion actual
-        df_data = self.get_current_location(lat, lon)
+        df_data = clase_datos.get_current_location(lat, lon)
         comuna = df_data['Comuna'].values[0]
         comuna = comuna.upper()
         barrio = df_data['Barrio'].values[0]
@@ -175,3 +177,4 @@ class Datos:
         )
 
         return df_tabla
+    
