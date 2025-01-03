@@ -133,6 +133,7 @@ class Datos:
         comuna = comuna.upper()
         barrio = df_data['Barrio'].values[0]
         barrio = barrio.upper()
+        hora = df_data['Franja Horaria'].values[0]
     
         # Obtenemos datos
         query = """
@@ -176,5 +177,37 @@ class Datos:
             }
         )
 
-        return df_tabla
+        return df_tabla, comuna, barrio, hora
     
+    def get_data_map_box(self, comuna, barrio, hora):
+        query = """
+            SELECT
+                fct.FECHA,
+                fct.FRANJA_HORARIA,
+                fct.LATITUD,
+                fct.LONGITUD,
+                dimb.BARRIO_DESC,
+                fct.CONTACTO_ID
+            FROM
+                FCT_HECHOS fct
+            JOIN
+                DIM_BARRIOS dimb
+            ON
+                fct.BARRIO_KEY = dimb.BARRIO_KEY
+            JOIN
+                DIM_COMUNAS dimc
+            ON
+                fct.COMUNA_KEY = dimc.COMUNA_KEY
+            WHERE 
+                YEAR(fct.FECHA) = (SELECT MAX(YEAR(fct.FECHA)) FROM FCT_HECHOS fct)
+                AND dimb.BARRIO_DESC = %(barrio)s
+                AND dimc.COMUNA_DESC = %(comuna)s
+                AND fct.FRANJA_HORARIA = %(hora)s
+            GROUP BY
+            fct.FECHA, fct.FRANJA_HORARIA, fct.LATITUD, fct.LONGITUD, dimb.BARRIO_DESC, fct.CONTACTO_ID
+            ORDER BY
+            FECHA;
+            """
+        df_map_box = pd.read_sql(query, con=self.engine, params={'comuna':comuna, 'barrio':barrio, 'hora':hora})
+
+        return df_map_box[['LONGITUD', 'LATITUD']]
