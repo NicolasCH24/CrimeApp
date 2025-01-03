@@ -1,15 +1,12 @@
 # STREAMLIT
 import streamlit as st
 
-# DATOS
-import pandas as pd
-
 # MAPA - GRAFICOS
 import folium as fl
 from streamlit_folium import st_folium
 from folium.elements import MacroElement
 from jinja2 import Template
-import plotly.graph_objects as go
+import pydeck as pdk
 
 # TIEMPO
 from datetime import time
@@ -69,112 +66,78 @@ class ModuloMap:
         m = fl.Map(location=[-34.6083, -58.3712], zoom_start=12)
         m.add_child(AddMarkerOnClick())
         return m
-
-    @staticmethod
-    @st.cache_resource
-    def graph_table(_lat, _lon):
-        clase_datos = Datos()
-        df_table = clase_datos.get_actual_location_table(_lat, _lon)
-        barrio = df_table["Barrio"].values[0]
-        barrio = barrio.upper()
-        tabla = st.dataframe(
-                df_table,
-                width=1000,
-                column_config={
-                    barrio: st.column_config.LineChartColumn(
-                        "Contactos por mes",
-                        help="Historial de contactos mensuales",
-                        y_min=0,
-                    ),
-                    "Franja horaria": st.column_config.LineChartColumn(
-                        "Contactos por franja horaria",
-                        help="Historial de contactos por franja horaria",
-                        y_min=0,
-                    ),
-                },
-                hide_index=True,
-            )
-        
-        return tabla
-    
-    @staticmethod
-    @st.cache_resource
-    def graph_mapa(_lat, _lon):
-        fig_map = go.Figure(go.Scattermapbox(
-        lat=[_lat],
-        lon=[_lon],
-        mode='markers',
-        ))
-
-        # Configurar el layout del mapa
-        fig_map.update_layout(
-            margin=dict(t=0, l=0, r=0, b=0),
-            mapbox_style="open-street-map",  # Estilo del mapa
-            mapbox_zoom=14,  # Nivel de zoom
-            mapbox_center={"lat": _lat, "lon": _lon},  # Centro del mapa
-        )
-        return fig_map
     
     def graph_new_table(self, _lat, _lon):
-        clase_datos = Datos()
-        df_table = clase_datos.get_actual_location_table(_lat, _lon)
-        barrio = df_table["Barrio"].values[0]
-        barrio = barrio.upper()
+        df_table, comuna, barrio, hora = self.clase_datos.get_actual_location_table(_lat, _lon)
+
         tabla = st.dataframe(
-                df_table,
-                width=1000,
-                column_config={
-                    barrio: st.column_config.LineChartColumn(
-                        "Contactos por mes",
-                        help="Historial de contactos mensuales",
-                        y_min=0,
-                    ),
-                    "Franja horaria": st.column_config.LineChartColumn(
-                        "Contactos por franja horaria",
-                        help="Historial de contactos por franja horaria",
-                        y_min=0,
-                    ),
-                },
-                hide_index=True,
-            )
-        
-        return tabla
-    
-    def graph_new_mapa(self, _lat, _lon):
-        fig_map = go.Figure(go.Scattermapbox(
-        lat=[_lat],
-        lon=[_lon],
-        mode='markers',
-        ))
-
-        # Configurar el layout del mapa
-        fig_map.update_layout(
-            margin=dict(t=0, l=0, r=0, b=0),
-            mapbox_style="open-street-map",  # Estilo del mapa
-            mapbox_zoom=14,  # Nivel de zoom
-            mapbox_center={"lat": _lat, "lon": _lon},  # Centro del mapa
+            df_table,
+            width=1100,
+            use_container_width=True,
+            column_config={
+                barrio: st.column_config.LineChartColumn(
+                    "Contactos por mes",
+                    help="Historial de contactos mensuales",
+                    y_min=0,
+                ),
+                "Franja horaria": st.column_config.LineChartColumn(
+                    "Contactos por franja horaria",
+                    help="Historial de contactos por franja horaria",
+                    y_min=0,
+                ),
+            },
+            hide_index=True,
         )
-        return fig_map
- 
-    # DASHBOARD
-    def dashboard(self, tabla, fig_map):
-        col1 = st.columns([1])
-        with col1[0]:
-            st.markdown("Mapa del delito")
         
-        with st.container(border=True):
-            tabla
-        col1, col2 = st.columns([4, 10])
-        with col2:
-            with st.container(border=True):
-                st.plotly_chart(fig_map, use_container_width=True)
+        return tabla, comuna, barrio, hora
 
-    # CONTAINER DE SELECCION DE UBICACION & CONTAINER DE DASHBORD INFORMATIVO
+    def graph_map_box(self, comuna, barrio, hora, _lat, _lon):
+        df_map_box = self.clase_datos.get_data_map_box(comuna, barrio, hora)
+
+        map_box = pdk.Deck(
+            map_style='mapbox://styles/mapbox/light-v11',
+            initial_view_state=pdk.ViewState(
+                latitude=_lat,
+                longitude=_lon,
+                zoom=13.7,
+                pitch=55,
+            ),
+            layers=[
+                pdk.Layer(
+                    'HexagonLayer',
+                    data=df_map_box,
+                    get_position='[LONGITUD, LATITUD]',
+                    radius=20,  # Reducir el radio para hexágonos más finos
+                    elevation_scale=3,
+                    elevation_range=[0, 800],
+                    pickable=True,
+                    extruded=True,
+                ),
+                pdk.Layer(
+                    'ScatterplotLayer',
+                    data=df_map_box,
+                    get_position='[LONGITUD, LATITUD]',
+                    get_color='[200, 30, 0, 160]',
+                    get_radius=20,
+                ),
+            ],
+        )
+
+        return map_box
+
+    def dashboard(self, map_box):
+        col1, col2 = st.columns([4, 10])  # Ajusta las proporciones de las columnas
+        with col1:
+            st.write("Datos")
+        with col2:
+            st.markdown("#### Mapa del delito")  # Título para el mapa
+            st.pydeck_chart(map_box)  # Mostrar el mapa directamente
+
     def container_dashboard(self, _lat, _lon):
-        tabla = self.graph_new_table(_lat, _lon)
-        fig_map = self.graph_new_mapa(_lat, _lon)
+        tabla, comuna, barrio, hora = self.graph_new_table(_lat, _lon)
+        map_box = self.graph_map_box(comuna, barrio, hora, _lat, _lon)
         with st.container(border=True):
-            dashboard = self.dashboard(tabla, fig_map)
+            self.dashboard(map_box)
 
     def container_map(self, m):
         # DATOS GLOBALES
