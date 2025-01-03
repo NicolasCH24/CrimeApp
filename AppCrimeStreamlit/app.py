@@ -28,7 +28,7 @@ def main():
         with col2:
             st.title("Ciudad Autónoma de Buenos Aires")
 
-    # CONTAINER MODULO MAPA
+    # CONTAINER MODULO MAPA & DASHBOARD
         m = modulo_mapa.folium_map()
         if st.session_state.selected_location:
             if st.button("Regresar"):
@@ -48,6 +48,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 ### MEJORAR DASHBOARD
