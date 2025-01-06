@@ -183,3 +183,4 @@ class ModuloMap:
 
 
         
+### COMPLETAR METRICAS DE DASHBOARD
