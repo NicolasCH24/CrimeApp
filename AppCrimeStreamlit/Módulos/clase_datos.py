@@ -11,6 +11,7 @@ from joblib import load
 
 # LOCALIZACION
 from geopy import Nominatim
+from geopy.distance import geodesic
 
 # BASE DE DATOS
 from sqlalchemy import create_engine
@@ -29,6 +30,7 @@ def load_models():
 kmeans, scaler = load_models()
 
 class Datos:
+    ### SQL
     def __init__(self):
         self.scaler = scaler
         self.kmeans = kmeans
@@ -39,7 +41,45 @@ class Datos:
 
         self.engine = create_engine("mysql+pymysql://{user}:{pw}@{host}/{db}"
 				.format(host=self.hostname, db=self.dbname, user=self.uname, pw=self.pwd))
+        
+    @st.cache_data
+    def get_df_by_query(_self, query):
+        db = _self.engine
+        df = pd.read_sql(query, db)
+        print("ejecutando query")
+        return df
     
+    ### DATOS DE PAGINA DE SELECCION DE DATOS
+    @staticmethod
+    @st.cache_data
+    def get_data_table(_df):
+        # Configuración local
+        # DF Table data
+        print("obteniendo tabla")
+        _df['FECHA'] = pd.to_datetime(_df['FECHA'])
+        _df['DIA_SEMANA'] = _df['FECHA'].dt.strftime("%A")
+
+        df_data = pd.DataFrame(
+            {'CONTACTO_ID':_df['CONTACTO_ID'].values,
+             'Dia semana':_df['DIA_SEMANA'].values,
+             'Hora':_df['FRANJA_HORARIA'].values}
+        )
+
+        orden_dias = ['lunes','martes','miércoles','jueves','viernes','sábado','domingo']
+        df_data['Dia semana'] = pd.Categorical(_df['DIA_SEMANA'], categories=orden_dias, ordered=True)
+
+        df_table = df_data.pivot_table(
+            index = 'Hora',
+            columns ='Dia semana',
+            values = 'CONTACTO_ID',
+            aggfunc ='count',
+            fill_value=0,
+            observed=False
+        )
+
+        return df_table
+
+    ### DATOS DASHBOARD
     def get_current_location(self, lat, lon):
         zonas_peligro = pd.read_csv("C:/Users/20391117579/Dropbox/CrimeApp/Datasets/Zona peligro/zona_puntaje.csv")
         geolocator = Nominatim(user_agent="AppCrimeStreamlit")
@@ -87,44 +127,6 @@ class Datos:
 
         return df_data
     
-    @st.cache_data
-    def get_df_by_query(_self, query):
-        db = _self.engine
-        df = pd.read_sql(query, db)
-        print("ejecutando query")
-
-        return df
-    
-    # TABLA CONSTANTE DE GRILLA HORARIA
-    @staticmethod
-    @st.cache_data
-    def get_data_table(_df):
-        # Configuración local
-        # DF Table data
-        print("obteniendo tabla")
-        _df['FECHA'] = pd.to_datetime(_df['FECHA'])
-        _df['DIA_SEMANA'] = _df['FECHA'].dt.strftime("%A")
-
-        df_data = pd.DataFrame(
-            {'CONTACTO_ID':_df['CONTACTO_ID'].values,
-             'Dia semana':_df['DIA_SEMANA'].values,
-             'Hora':_df['FRANJA_HORARIA'].values}
-        )
-
-        orden_dias = ['lunes','martes','miércoles','jueves','viernes','sábado','domingo']
-        df_data['Dia semana'] = pd.Categorical(_df['DIA_SEMANA'], categories=orden_dias, ordered=True)
-
-        df_table = df_data.pivot_table(
-            index = 'Hora',
-            columns ='Dia semana',
-            values = 'CONTACTO_ID',
-            aggfunc ='count',
-            fill_value=0,
-            observed=False
-        )
-
-        return df_table
-
     def get_actual_location_table(self, lat, lon):
         clase_datos = Datos()
         # Localizacion actual
@@ -211,3 +213,23 @@ class Datos:
         df_map_box = pd.read_sql(query, con=self.engine, params={'comuna':comuna, 'barrio':barrio, 'hora':hora})
 
         return df_map_box[['LONGITUD', 'LATITUD']]
+    
+    def calculate_events_in_radius(self, new_location, df_map_box):
+        # TRANFORMACION - MES ACTUAL VS ANTERIOR
+        df_map_box['FECHA'] = pd.to_datetime(df_map_box['FECHA'])
+        df_map_box['MES'] = df_map_box['FECHA'].dt.month
+        # CONTADORES
+        count_mes_actual = 0
+        count_mes_anterior = 0
+        locations_mes_actual = df_map_box[['LATITUD', 'LONGITUD']][df_map_box['MES'] == datetime.now().month].values
+        locations_mes_anterior = df_map_box[['LATITUD', 'LONGITUD']][df_map_box['MES'] == (datetime.now() - pd.DateOffset(months=1)).month].values
+        # HECHOS MES ACTUAL
+        for location in locations_mes_actual:
+            if geodesic(new_location, location).km <= 5:
+                count_mes_actual += 1
+        # HECHOS MES ANTERIOIR
+        for location in locations_mes_anterior:
+            if geodesic(new_location, location).km <= 5:
+                count_mes_anterior += 1
+        
+        return count_mes_actual, count_mes_anterior
