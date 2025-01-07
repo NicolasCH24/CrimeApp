@@ -91,9 +91,10 @@ class ModuloMap:
         
         return tabla, comuna, barrio, hora
 
-    def graph_map_box(self, comuna, barrio, hora, _lat, _lon):
-        df_map_box = self.clase_datos.get_data_map_box(comuna, barrio, hora)
+    def graph_dashboard_elements(self, comuna, barrio, hora, _lat, _lon):
+        df_map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio = self.clase_datos.get_elements_dashbord(_lat, _lon, comuna, barrio, hora)
 
+        # MAP BOX
         map_box = pdk.Deck(
             map_style='mapbox://styles/mapbox/light-v11',
             initial_view_state=pdk.ViewState(
@@ -123,21 +124,40 @@ class ModuloMap:
             ],
         )
 
-        return map_box
-
-    def dashboard(self, map_box):
-        col1, col2 = st.columns([4, 10])  # Ajusta las proporciones de las columnas
-        with col1:
-            st.write("Datos")
-        with col2:
-            st.markdown("#### Mapa del delito")  # Título para el mapa
-            st.pydeck_chart(map_box)  # Mostrar el mapa directamente
-
-    def container_dashboard(self, _lat, _lon):
+        return map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio
+    
+    def dashboard(self, _lat, _lon):
         tabla, comuna, barrio, hora = self.graph_new_table(_lat, _lon)
-        map_box = self.graph_map_box(comuna, barrio, hora, _lat, _lon)
+        map_box, tupla_mes , tupla_semana, delito_promedio, hechos_delito_promedio= self.graph_dashboard_elements(comuna, barrio, hora, _lat, _lon)
+        st.markdown(
+        """
+        <style>
+        [data-testid="stMetricValue"] {
+            font-size: 20px; /* Tamaño uniforme para valores */
+            height: 50px; /* Altura fija para todos */
+        }
+        [data-testid="stMetricDelta"] {
+            font-size: 16px; /* Tamaño uniforme para deltas */
+            height: 20px; /* Altura fija para deltas */
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+        )
         with st.container(border=True):
-            self.dashboard(map_box)
+            col1, col2 = st.columns([14, 10])  # Ajusta las proporciones de las columnas
+            with col1:
+                st.markdown("### Indicadores clave (KPIs)")
+                kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+                with kpi_col1:
+                    st.metric(label="Hechos Mes actual - Mes anterior - 5 kilometros", value=tupla_mes[0], delta=tupla_mes[1], border=True)
+                with kpi_col2:
+                    st.metric(label="Hechos Semana actual - Semana anterior - 5 kilometros", value=tupla_semana[0], delta=tupla_semana[1], border=True)
+                with kpi_col3:
+                    st.metric(label="Delito promedio", value=delito_promedio, delta = hechos_delito_promedio , border=True)
+            with col2:
+                st.markdown("#### Mapa del delito")  # Título para el mapa
+                st.pydeck_chart(map_box, use_container_width=True)  # Mostrar el mapa directamente
 
     def container_map(self, m):
         # DATOS GLOBALES
@@ -182,5 +202,4 @@ class ModuloMap:
                     st.rerun()
 
 
-        
-### COMPLETAR METRICAS DE DASHBOARD
+### HACER LOS KPI CON PLOTLY
