@@ -35,7 +35,7 @@ def main():
                 mapa = modulo_mapa.container_map(m)
                 st.session_state.selected_location = None
             else:
-                dashboard = modulo_mapa.container_dashboard(_lat=st.session_state.selected_location[0], _lon=st.session_state.selected_location[1])
+                dashboard = modulo_mapa.dashboard(_lat=st.session_state.selected_location[0], _lon=st.session_state.selected_location[1])
         else:
             mapa = modulo_mapa.container_map(m)
 
