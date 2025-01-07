@@ -181,7 +181,9 @@ class Datos:
 
         return df_tabla, comuna, barrio, hora
     
-    def get_data_map_box(self, comuna, barrio, hora):
+    def get_elements_dashbord(self, _lat, _lon, comuna, barrio, hora):
+        new_location = _lat, _lon
+        # DATOS MAP BOX
         query = """
             SELECT
                 fct.FECHA,
@@ -189,6 +191,7 @@ class Datos:
                 fct.LATITUD,
                 fct.LONGITUD,
                 dimb.BARRIO_DESC,
+                dtd.TIPO_DELITO_DESC,
                 fct.CONTACTO_ID
             FROM
                 FCT_HECHOS fct
@@ -200,36 +203,65 @@ class Datos:
                 DIM_COMUNAS dimc
             ON
                 fct.COMUNA_KEY = dimc.COMUNA_KEY
+            JOIN
+                DIM_TIPO_DELITO dtd
+            ON
+                fct.TIPO_DELITO_KEY = dtd.TIPO_DELITO_KEY
             WHERE 
                 YEAR(fct.FECHA) = (SELECT MAX(YEAR(fct.FECHA)) FROM FCT_HECHOS fct)
                 AND dimb.BARRIO_DESC = %(barrio)s
                 AND dimc.COMUNA_DESC = %(comuna)s
                 AND fct.FRANJA_HORARIA = %(hora)s
             GROUP BY
-            fct.FECHA, fct.FRANJA_HORARIA, fct.LATITUD, fct.LONGITUD, dimb.BARRIO_DESC, fct.CONTACTO_ID
+            fct.FECHA, fct.FRANJA_HORARIA, fct.LATITUD, fct.LONGITUD, dimb.BARRIO_DESC, dtd.TIPO_DELITO_DESC ,fct.CONTACTO_ID
             ORDER BY
             FECHA;
             """
         df_map_box = pd.read_sql(query, con=self.engine, params={'comuna':comuna, 'barrio':barrio, 'hora':hora})
 
-        return df_map_box[['LONGITUD', 'LATITUD']]
-    
-    def calculate_events_in_radius(self, new_location, df_map_box):
-        # TRANFORMACION - MES ACTUAL VS ANTERIOR
+        # KPIS
+        # KPI HECHOS MES ACTUAL VS ANTERIOR EN RADIO DE 5 KM
         df_map_box['FECHA'] = pd.to_datetime(df_map_box['FECHA'])
         df_map_box['MES'] = df_map_box['FECHA'].dt.month
-        # CONTADORES
+      
         count_mes_actual = 0
         count_mes_anterior = 0
         locations_mes_actual = df_map_box[['LATITUD', 'LONGITUD']][df_map_box['MES'] == datetime.now().month].values
         locations_mes_anterior = df_map_box[['LATITUD', 'LONGITUD']][df_map_box['MES'] == (datetime.now() - pd.DateOffset(months=1)).month].values
-        # HECHOS MES ACTUAL
+
         for location in locations_mes_actual:
             if geodesic(new_location, location).km <= 5:
                 count_mes_actual += 1
-        # HECHOS MES ANTERIOIR
+
         for location in locations_mes_anterior:
             if geodesic(new_location, location).km <= 5:
                 count_mes_anterior += 1
         
-        return count_mes_actual, count_mes_anterior
+        tupla_mes = count_mes_actual, count_mes_anterior
+
+        # KPI SEMANA ACTUAL VS SEMANA ANTERIOR RADIO 5 KM
+        df_map_box['SemanaDelAño'] = df_map_box['FECHA'].dt.isocalendar().week
+        ultima_semana = int(df_map_box['SemanaDelAño'].max())
+        semana_anterior = ultima_semana - 1
+
+        count_semana_actual = 0
+        count_semana_anterior = 0
+
+        locations_semana_actual = df_map_box[['LATITUD', 'LONGITUD']][df_map_box['SemanaDelAño'] == ultima_semana].values
+        locations_semana_anterior = df_map_box[['LATITUD', 'LONGITUD']][df_map_box['SemanaDelAño'] == semana_anterior].values
+
+        for location in locations_semana_actual:
+            if geodesic(new_location, location).km <= 5:
+                count_semana_actual += 1
+
+        for location in locations_semana_anterior:
+            if geodesic(new_location, location).km <= 5:
+                count_semana_anterior
+        
+        tupla_semana = count_semana_actual, count_mes_anterior
+
+        # KPI DELITO PROMEDIO
+        delito_promedio = df_map_box['TIPO_DELITO_DESC'].describe().top
+        hechos_delito_promedio = int(df_map_box[df_map_box['TIPO_DELITO_DESC'] == df_map_box['TIPO_DELITO_DESC'].describe().top]['CONTACTO_ID'].count())
+
+        return df_map_box[['LATITUD', 'LONGITUD']], tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio
