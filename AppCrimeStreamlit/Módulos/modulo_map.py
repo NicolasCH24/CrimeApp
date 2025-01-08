@@ -4,6 +4,7 @@ import streamlit as st
 # MAPA - GRAFICOS
 import folium as fl
 from streamlit_folium import st_folium
+import plotly.graph_objects as go
 from folium.elements import MacroElement
 from jinja2 import Template
 import pydeck as pdk
@@ -123,41 +124,45 @@ class ModuloMap:
                 ),
             ],
         )
+        # KPI MES
+        kpi_mes = go.Indicator(
+            mode = "number+delta",
+            value = tupla_mes[0],
+            title = {"text": "Hechos Mes actual vs Mes anterior<br><span style='font-size:0.1em;color:gray'>"},
+            delta = {'reference': tupla_mes[1]})
+        
+        # KPI SEMANA
+        kpi_semana = go.Indicator(
+            mode = "number+delta",
+            value= tupla_semana[0],
+            title= {'text':"Hechos Semana actual vs Semana anterior<br><span style='font-size:0.1em;color:gray'>"},
+            delta = {'reference':tupla_mes[1]}
+        )
 
-        return map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio
+        # KPI DELITO PROMEDIO
+        kpi_delito = go.Indicator(
+            mode="number",
+            value = hechos_delito_promedio,
+            title = {'text':f"{delito_promedio}<br><span style='font-size:0.1em;color:gray'>"},
+        )
+
+        return map_box, kpi_mes, kpi_semana, kpi_delito
     
     def dashboard(self, _lat, _lon):
         tabla, comuna, barrio, hora = self.graph_new_table(_lat, _lon)
-        map_box, tupla_mes , tupla_semana, delito_promedio, hechos_delito_promedio= self.graph_dashboard_elements(comuna, barrio, hora, _lat, _lon)
-        st.markdown(
-        """
-        <style>
-        [data-testid="stMetricValue"] {
-            font-size: 20px; /* Tamaño uniforme para valores */
-            height: 50px; /* Altura fija para todos */
-        }
-        [data-testid="stMetricDelta"] {
-            font-size: 16px; /* Tamaño uniforme para deltas */
-            height: 20px; /* Altura fija para deltas */
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-        )
+        map_box, kpi_mes, kpi_semana, kpi_delito = self.graph_dashboard_elements(comuna, barrio, hora, _lat, _lon)
+
         with st.container(border=True):
             col1, col2 = st.columns([14, 10])  # Ajusta las proporciones de las columnas
             with col1:
                 st.markdown("### Indicadores clave (KPIs)")
                 kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
                 with kpi_col1:
-                    st.metric(label="Hechos Mes actual - Mes anterior - 5 kilometros", value=tupla_mes[0], delta=tupla_mes[1], border=True)
-                with kpi_col2:
-                    st.metric(label="Hechos Semana actual - Semana anterior - 5 kilometros", value=tupla_semana[0], delta=tupla_semana[1], border=True)
-                with kpi_col3:
-                    st.metric(label="Delito promedio", value=delito_promedio, delta = hechos_delito_promedio , border=True)
+                    with st.container(border=True):
+                        st.plotly_chart(go.Figure(kpi_mes))
             with col2:
                 st.markdown("#### Mapa del delito")  # Título para el mapa
-                st.pydeck_chart(map_box, use_container_width=True)  # Mostrar el mapa directamente
+                st.pydeck_chart(map_box, use_container_width=True)
 
     def container_map(self, m):
         # DATOS GLOBALES
@@ -202,4 +207,4 @@ class ModuloMap:
                     st.rerun()
 
 
-### HACER LOS KPI CON PLOTLY
+### TERMINAR LOS KPIS CON PLOTLY
