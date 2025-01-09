@@ -4,14 +4,16 @@ from streamlit_option_menu import option_menu
 
 # MODULO MAPA
 from Módulos.modulo_map import ModuloMap
-    
-def main():
-    modulo_mapa = ModuloMap()
-    configuracion_pag = st.set_page_config(
+
+st.set_page_config(
         page_title="App BA Delito",
         page_icon=":chart_with_upwards_trend:",
         layout="wide"
     )
+    
+def main():
+    modulo_mapa = ModuloMap()
+
     with st.sidebar:
         selected = option_menu('Menú', ['Mapa', 'Estadística',"Tabla personal"],
             icons=['map', 'bar-chart', 'table'], menu_icon='cast', default_index=0)
