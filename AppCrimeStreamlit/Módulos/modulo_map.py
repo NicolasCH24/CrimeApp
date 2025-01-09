@@ -125,25 +125,88 @@ class ModuloMap:
             ],
         )
         # KPI MES
-        kpi_mes = go.Indicator(
+        kpi_mes = go.Figure()
+        kpi_mes.add_trace(go.Indicator(
             mode = "number+delta",
             value = tupla_mes[0],
-            title = {"text": "Hechos Mes actual vs Mes anterior<br><span style='font-size:0.1em;color:gray'>"},
-            delta = {'reference': tupla_mes[1]})
+            title = {"text": "Mes actual - Mes anterior",
+                     "font": {"size": 14, "color": "white"}},
+            delta = {'reference': tupla_mes[1]}))
+        
+        kpi_mes.update_layout(
+            #grid={'rows': 0, 'columns': 0, 'pattern': "independent"},
+            autosize=False,
+            width=950,
+            height=120,
+            margin=dict(
+                l=0,
+                r=0,
+                b=0,
+                t=30,
+                pad=4
+            ),
+            template={'data': {'indicator': [{
+                'title': {'text': "Speed"},
+                'mode': "number+delta+gauge",
+                'delta': {'reference': 90}}]
+            }}
+        )
         
         # KPI SEMANA
-        kpi_semana = go.Indicator(
+        kpi_semana = go.Figure()
+        kpi_semana.add_trace(go.Indicator(
             mode = "number+delta",
             value= tupla_semana[0],
-            title= {'text':"Hechos Semana actual vs Semana anterior<br><span style='font-size:0.1em;color:gray'>"},
+            title= {'text':"Semana actual - Semana anterior",
+                    "font": {"size": 14, "color": "white"}},
             delta = {'reference':tupla_mes[1]}
+        ))
+
+        kpi_semana.update_layout(
+            #grid={'rows': 0, 'columns': 1, 'pattern': "independent"},
+            autosize=False,
+            width=950,
+            height=120,
+            margin=dict(
+                l=0,
+                r=0,
+                b=0,
+                t=30,
+                pad=4
+            ),
+            template={'data': {'indicator': [{
+                'title': {'text': "Speed"},
+                'mode': "number+delta+gauge",
+                'delta': {'reference': 90}}]
+            }}
         )
 
         # KPI DELITO PROMEDIO
-        kpi_delito = go.Indicator(
+        kpi_delito = go.Figure()
+        kpi_delito.add_trace(go.Indicator(
             mode="number",
             value = hechos_delito_promedio,
-            title = {'text':f"{delito_promedio}<br><span style='font-size:0.1em;color:gray'>"},
+            title = {'text':f"Delito promedio - {delito_promedio}",
+                     "font": {"size": 14, "color": "white"}},
+        ))
+
+        kpi_delito.update_layout(
+            #grid={'rows': 0, 'columns': 0, 'pattern': "independent"},
+            autosize=False,
+            width=950,
+            height=120,
+            margin=dict(
+                l=0,
+                r=0,
+                b=0,
+                t=30,
+                pad=4
+            ),
+            template={'data': {'indicator': [{
+                'title': {'text': "Speed"},
+                'mode': "number",
+                'delta': {'reference': 90}}]
+            }}
         )
 
         return map_box, kpi_mes, kpi_semana, kpi_delito
@@ -153,16 +216,23 @@ class ModuloMap:
         map_box, kpi_mes, kpi_semana, kpi_delito = self.graph_dashboard_elements(comuna, barrio, hora, _lat, _lon)
 
         with st.container(border=True):
-            col1, col2 = st.columns([14, 10])  # Ajusta las proporciones de las columnas
+            col1, col2 = st.columns([16, 10])  # Ajusta las proporciones de las columnas
             with col1:
-                st.markdown("### Indicadores clave (KPIs)")
+                st.markdown("### Indicadores clave (KPIs) - Hechos")
                 kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
                 with kpi_col1:
                     with st.container(border=True):
-                        st.plotly_chart(go.Figure(kpi_mes))
+                        st.plotly_chart(kpi_mes)
+                with kpi_col2:
+                    with st.container(border=True):
+                        st.plotly_chart(kpi_semana)
+                with kpi_col3:
+                    with st.container(border=True):
+                        st.plotly_chart(kpi_delito)  
             with col2:
                 st.markdown("#### Mapa del delito")  # Título para el mapa
-                st.pydeck_chart(map_box, use_container_width=True)
+                with st.container(border=True):
+                    st.pydeck_chart(map_box, use_container_width=True)
 
     def container_map(self, m):
         # DATOS GLOBALES
@@ -207,4 +277,4 @@ class ModuloMap:
                     st.rerun()
 
 
-### TERMINAR LOS KPIS CON PLOTLY
+### AGREGAR OTRO GRAFICO A AL DASHBOARD Y COMENZAR CON API DE NOTICIAS
