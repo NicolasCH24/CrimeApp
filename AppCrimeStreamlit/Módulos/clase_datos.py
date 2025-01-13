@@ -264,4 +264,4 @@ class Datos:
         delito_promedio = df_map_box['TIPO_DELITO_DESC'].describe().top
         hechos_delito_promedio = int(df_map_box[df_map_box['TIPO_DELITO_DESC'] == df_map_box['TIPO_DELITO_DESC'].describe().top]['CONTACTO_ID'].count())
 
-        return df_map_box[['LATITUD', 'LONGITUD']], tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio
+        return df_map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio
