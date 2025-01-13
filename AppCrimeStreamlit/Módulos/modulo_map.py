@@ -1,6 +1,12 @@
 # STREAMLIT
 import streamlit as st
 
+# APY KEYS
+import os
+
+# CHATBOT
+from Módulos.clase_ai import CrearAI
+
 # MAPA - GRAFICOS
 import folium as fl
 from streamlit_folium import st_folium
@@ -94,7 +100,8 @@ class ModuloMap:
 
     def graph_dashboard_elements(self, comuna, barrio, hora, _lat, _lon):
         df_map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio = self.clase_datos.get_elements_dashbord(_lat, _lon, comuna, barrio, hora)
-
+        df_bar = df_map_box
+        df_map_box = df_map_box[['LATITUD', 'LONGITUD']]
         # MAP BOX
         map_box = pdk.Deck(
             map_style='mapbox://styles/mapbox/light-v11',
@@ -208,12 +215,69 @@ class ModuloMap:
                 'delta': {'reference': 90}}]
             }}
         )
+        # GRAFICO DE BARRAS APILADAS
+        df_grouped = df_bar.groupby(['TIPO_DELITO_DESC', 'FECHA']).agg({'CONTACTO_ID':'count'}).rename(columns={'CONTACTO_ID':'HECHOS'})
+        df_grouped_totals = df_grouped.groupby('TIPO_DELITO_DESC')['HECHOS'].sum().reset_index()
 
-        return map_box, kpi_mes, kpi_semana, kpi_delito
+        df_grouped_totals = df_grouped_totals.sort_values(by='HECHOS', ascending=True)
+
+        x_data = df_grouped_totals['HECHOS']
+        y_data = df_grouped_totals['TIPO_DELITO_DESC']
+
+        colors = [
+            'rgba(25, 15, 50, 0.8)',  # Color oscuro
+            'rgba(38, 24, 74, 0.8)', 
+            'rgba(71, 58, 131, 0.8)',
+            'rgba(122, 120, 168, 0.8)',
+            'rgba(164, 163, 204, 0.85)',
+            'rgba(190, 192, 213, 1)'  # Color claro
+        ]
+
+        fig_delitos = go.Figure()
+
+        for i, (x, y) in enumerate(zip(x_data, y_data)):
+            fig_delitos.add_trace(go.Bar(
+                x=[x],
+                y=[y],
+                text=[x],
+                orientation='h',
+                marker=dict(
+                    color=colors[i % len(colors)],  # Aplicar degradado
+                    line=dict(color='rgb(248, 248, 249)', width=1)
+                )
+            ))
+
+        fig_delitos.update_layout(
+            xaxis=dict(
+                showgrid=False,
+                showline=False,
+                zeroline=False,
+                title='Cantidad de Hechos'
+            ),
+            yaxis=dict(
+                showgrid=False,
+                showline=False,
+                zeroline=False,
+                title='Tipo de Delito',
+                categoryorder='total ascending' 
+            ),
+            barmode='stack',
+            paper_bgcolor='rgb(248, 248, 255)',
+            plot_bgcolor='rgb(248, 248, 255)',
+            margin=dict(l=150, r=10, t=30, b=40),
+            showlegend=False,
+            template='plotly_dark'
+        )
+
+        # NARRATIVA
+        agent = CrearAI()
+        narrativa = agent.invoke(f"retornar lista de noticias en columna apiladas para éstos tópics **Inseguridad:** **Incidente vial:** **Crimen/delito:** **Otros:**, del barrio({barrio} de CABA")['output']
+
+        return map_box, kpi_mes, kpi_semana, kpi_delito, fig_delitos, narrativa
     
     def dashboard(self, _lat, _lon):
         tabla, comuna, barrio, hora = self.graph_new_table(_lat, _lon)
-        map_box, kpi_mes, kpi_semana, kpi_delito = self.graph_dashboard_elements(comuna, barrio, hora, _lat, _lon)
+        map_box, kpi_mes, kpi_semana, kpi_delito, fig_delito, narrativa = self.graph_dashboard_elements(comuna, barrio, hora, _lat, _lon)
 
         with st.container(border=True):
             col1, col2 = st.columns([16, 10])  # Ajusta las proporciones de las columnas
@@ -228,7 +292,11 @@ class ModuloMap:
                         st.plotly_chart(kpi_semana)
                 with kpi_col3:
                     with st.container(border=True):
-                        st.plotly_chart(kpi_delito)  
+                        st.plotly_chart(kpi_delito)
+                with st.container(border=True):
+                    st.plotly_chart(fig_delito)
+                with st.container(border=True):
+                    st.write(narrativa)  
             with col2:
                 st.markdown("#### Mapa del delito")  # Título para el mapa
                 with st.container(border=True):
@@ -277,4 +345,4 @@ class ModuloMap:
                     st.rerun()
 
 
-### AGREGAR OTRO GRAFICO A AL DASHBOARD Y COMENZAR CON API DE NOTICIAS
+### LLEVAR GRAFICO DE BARRAS Y MEJORAR LA SALIDA DE LA NARRATIVA DE NOTICIAS
