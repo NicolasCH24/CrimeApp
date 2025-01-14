@@ -224,54 +224,60 @@ class ModuloMap:
         x_data = df_grouped_totals['HECHOS']
         y_data = df_grouped_totals['TIPO_DELITO_DESC']
 
-        colors = [
-            'rgba(25, 15, 50, 0.8)',  # Color oscuro
-            'rgba(38, 24, 74, 0.8)', 
-            'rgba(71, 58, 131, 0.8)',
-            'rgba(122, 120, 168, 0.8)',
-            'rgba(164, 163, 204, 0.85)',
-            'rgba(190, 192, 213, 1)'  # Color claro
-        ]
+        max_val = max(x_data)
+        min_val = min(x_data)
 
+        def get_gradient_color(value, min_val, max_val):
+            ratio = (value - min_val) / (max_val - min_val) if max_val > min_val else 0
+            r = int(255 - 30 * ratio)  
+            g = int(255 - 120 * ratio) 
+            b = int(200 - 150 * ratio)  
+            return f'rgb({r},{g},{b})'
+
+        # Crear figura
         fig_delitos = go.Figure()
 
-        for i, (x, y) in enumerate(zip(x_data, y_data)):
+        for x, y in zip(x_data, y_data):
             fig_delitos.add_trace(go.Bar(
                 x=[x],
                 y=[y],
                 text=[x],
                 orientation='h',
                 marker=dict(
-                    color=colors[i % len(colors)],  # Aplicar degradado
-                    line=dict(color='rgb(248, 248, 249)', width=1)
-                )
+                    color=get_gradient_color(x, min_val, max_val),  # Aplicar degradado
+                    line=dict(color='white', width=1)
+                ),
+                textfont=dict(color='black')  # Fuente blanca
             ))
 
+        # Configuración de diseño
         fig_delitos.update_layout(
+            height=400,
             xaxis=dict(
                 showgrid=False,
                 showline=False,
                 zeroline=False,
-                title='Cantidad de Hechos'
+                title='Cantidad de Hechos',
+                title_font=dict(color='white'),
+                tickfont=dict(color='white')
             ),
             yaxis=dict(
                 showgrid=False,
                 showline=False,
                 zeroline=False,
                 title='Tipo de Delito',
-                categoryorder='total ascending' 
+                title_font=dict(color='white'),
+                tickfont=dict(color='white'),
+                categoryorder='total ascending'
             ),
             barmode='stack',
-            paper_bgcolor='rgb(248, 248, 255)',
-            plot_bgcolor='rgb(248, 248, 255)',
             margin=dict(l=150, r=10, t=30, b=40),
-            showlegend=False,
-            template='plotly_dark'
+            showlegend=False
         )
 
         # NARRATIVA
         agent = CrearAI()
-        narrativa = agent.invoke(f"retornar lista de noticias en columna apiladas para éstos tópics **Inseguridad:** **Incidente vial:** **Crimen/delito:** **Otros:**, del barrio({barrio} de CABA")['output']
+        narrativa = agent.invoke(f"retornar lista de noticias en columna apiladas para éstos tópics [Insegurida, Incidente vial, Crimen/delito, Otros], del barrio({barrio} de CABA en un lapso no mayor de 24 horas")['output']
 
         return map_box, kpi_mes, kpi_semana, kpi_delito, fig_delitos, narrativa
     
@@ -294,7 +300,7 @@ class ModuloMap:
                     with st.container(border=True):
                         st.plotly_chart(kpi_delito)
                 with st.container(border=True):
-                    st.plotly_chart(fig_delito)
+                    st.plotly_chart(fig_delito, theme='streamlit')
                 with st.container(border=True):
                     st.write(narrativa)  
             with col2:
