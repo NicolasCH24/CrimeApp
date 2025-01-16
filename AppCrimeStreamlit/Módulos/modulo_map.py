@@ -5,7 +5,7 @@ import streamlit as st
 import os
 
 # CHATBOT
-from Módulos.clase_ai import CrearAI
+#from Módulos.clase_ai import CrearAI
 
 # MAPA - GRAFICOS
 import folium as fl
@@ -276,14 +276,14 @@ class ModuloMap:
         )
 
         # NARRATIVA
-        agent = CrearAI()
-        narrativa = agent.invoke(f"retornar lista de noticias en columna apiladas para éstos tópics [Insegurida, Incidente vial, Crimen/delito, Otros], del barrio({barrio} de CABA en un lapso no mayor de 24 horas")['output']
+        #agent = CrearAI()
+        #narrativa = agent.invoke(f"retornar lista de noticias en columna apiladas para éstos tópics [Insegurida, Incidente vial, Crimen/delito, Otros], del barrio({barrio} de CABA en un lapso no mayor de 24 horas")['output']
 
-        return map_box, kpi_mes, kpi_semana, kpi_delito, fig_delitos, narrativa
+        return map_box, kpi_mes, kpi_semana, kpi_delito, fig_delitos
     
     def dashboard(self, _lat, _lon):
         tabla, comuna, barrio, hora = self.graph_new_table(_lat, _lon)
-        map_box, kpi_mes, kpi_semana, kpi_delito, fig_delito, narrativa = self.graph_dashboard_elements(comuna, barrio, hora, _lat, _lon)
+        map_box, kpi_mes, kpi_semana, kpi_delito, fig_delito = self.graph_dashboard_elements(comuna, barrio, hora, _lat, _lon)
 
         with st.container(border=True):
             col1, col2 = st.columns([16, 10])  # Ajusta las proporciones de las columnas
@@ -301,8 +301,6 @@ class ModuloMap:
                         st.plotly_chart(kpi_delito)
                 with st.container(border=True):
                     st.plotly_chart(fig_delito, theme='streamlit')
-                with st.container(border=True):
-                    st.write(narrativa)  
             with col2:
                 st.markdown("#### Mapa del delito")  # Título para el mapa
                 with st.container(border=True):
