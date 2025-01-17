@@ -1,11 +1,8 @@
 # STREAMLIT
 import streamlit as st
 
-# APY KEYS
-import os
-
-# CHATBOT
-#from Módulos.clase_ai import CrearAI
+# AGENT
+from Módulos.clase_ai import DataframeAgent
 
 # MAPA - GRAFICOS
 import folium as fl
@@ -16,7 +13,7 @@ from jinja2 import Template
 import pydeck as pdk
 
 # TIEMPO
-from datetime import time
+from datetime import time, datetime
 
 # LOCALIZACION
 from Módulos.clase_datos import Datos
@@ -96,12 +93,12 @@ class ModuloMap:
             hide_index=True,
         )
         
-        return tabla, comuna, barrio, hora
+        return tabla, comuna, barrio
 
-    def graph_dashboard_elements(self, comuna, barrio, hora, _lat, _lon):
-        df_map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio = self.clase_datos.get_elements_dashbord(_lat, _lon, comuna, barrio, hora)
+    def graph_dashboard_elements(self, comuna, barrio, _lat, _lon):
+        df_map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio, df_locations = self.clase_datos.get_elements_dashbord(_lat, _lon, comuna, barrio)
         df_bar = df_map_box
-        df_map_box = df_map_box[['LATITUD', 'LONGITUD']]
+        df_map_box = df_map_box[['LATITUD', 'LONGITUD']][df_map_box['FRANJA_HORARIA'] == datetime.now().hour]
         # MAP BOX
         map_box = pdk.Deck(
             map_style='mapbox://styles/mapbox/light-v11',
@@ -276,14 +273,17 @@ class ModuloMap:
         )
 
         # NARRATIVA
-        #agent = CrearAI()
-        #narrativa = agent.invoke(f"retornar lista de noticias en columna apiladas para éstos tópics [Insegurida, Incidente vial, Crimen/delito, Otros], del barrio({barrio} de CABA en un lapso no mayor de 24 horas")['output']
+        _df = df_locations
+        agent = DataframeAgent(_df)
+        narrativa = agent.invoke("""Tu informacion está en: print(df[['Direcciones', 'Franja horaria promedio', 'Delito más frecuente', 'Hechos']])
+                                    Retorna recomedacion para el ciudadano basandote en donde, cuando y detalles.
+                                    """)['output']
 
-        return map_box, kpi_mes, kpi_semana, kpi_delito, fig_delitos
+        return map_box, kpi_mes, kpi_semana, kpi_delito, fig_delitos, df_locations, narrativa
     
     def dashboard(self, _lat, _lon):
-        tabla, comuna, barrio, hora = self.graph_new_table(_lat, _lon)
-        map_box, kpi_mes, kpi_semana, kpi_delito, fig_delito = self.graph_dashboard_elements(comuna, barrio, hora, _lat, _lon)
+        tabla, comuna, barrio = self.graph_new_table(_lat, _lon)
+        map_box, kpi_mes, kpi_semana, kpi_delito, fig_delito, df_locations, narrativa = self.graph_dashboard_elements(comuna, barrio, _lat, _lon)
 
         with st.container(border=True):
             col1, col2 = st.columns([16, 10])  # Ajusta las proporciones de las columnas
@@ -300,11 +300,15 @@ class ModuloMap:
                     with st.container(border=True):
                         st.plotly_chart(kpi_delito)
                 with st.container(border=True):
+                    st.dataframe(df_locations, use_container_width=True, hide_index=True)
+                with st.container(border=True):
                     st.plotly_chart(fig_delito, theme='streamlit')
             with col2:
                 st.markdown("#### Mapa del delito")  # Título para el mapa
                 with st.container(border=True):
-                    st.pydeck_chart(map_box, use_container_width=True)
+                    st.write(narrativa)
+                with st.container(border=True):
+                    st.pydeck_chart(map_box, use_container_width=True, height=690)
 
     def container_map(self, m):
         # DATOS GLOBALES
