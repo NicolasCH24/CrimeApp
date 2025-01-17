@@ -55,7 +55,6 @@ class Datos:
     def get_data_table(_df):
         # Configuración local
         # DF Table data
-        print("obteniendo tabla")
         _df['FECHA'] = pd.to_datetime(_df['FECHA'])
         _df['DIA_SEMANA'] = _df['FECHA'].dt.strftime("%A")
 
@@ -181,7 +180,7 @@ class Datos:
 
         return df_tabla, comuna, barrio, hora
     
-    def get_elements_dashbord(self, _lat, _lon, comuna, barrio, hora):
+    def get_elements_dashbord(self, _lat, _lon, comuna, barrio):
         new_location = _lat, _lon
         # DATOS MAP BOX
         query = """
@@ -211,13 +210,12 @@ class Datos:
                 YEAR(fct.FECHA) = (SELECT MAX(YEAR(fct.FECHA)) FROM FCT_HECHOS fct)
                 AND dimb.BARRIO_DESC = %(barrio)s
                 AND dimc.COMUNA_DESC = %(comuna)s
-                AND fct.FRANJA_HORARIA = %(hora)s
             GROUP BY
             fct.FECHA, fct.FRANJA_HORARIA, fct.LATITUD, fct.LONGITUD, dimb.BARRIO_DESC, dtd.TIPO_DELITO_DESC ,fct.CONTACTO_ID
             ORDER BY
             FECHA;
             """
-        df_map_box = pd.read_sql(query, con=self.engine, params={'comuna':comuna, 'barrio':barrio, 'hora':hora})
+        df_map_box = pd.read_sql(query, con=self.engine, params={'comuna':comuna, 'barrio':barrio})
 
         # KPIS
         # KPI HECHOS MES ACTUAL VS ANTERIOR EN RADIO DE 5 KM
@@ -251,11 +249,11 @@ class Datos:
         locations_semana_anterior = df_map_box[['LATITUD', 'LONGITUD']][df_map_box['SemanaDelAño'] == semana_anterior].values
 
         for location in locations_semana_actual:
-            if geodesic(new_location, location).km <= 5:
+            if geodesic(new_location, location).km <= 2:
                 count_semana_actual += 1
 
         for location in locations_semana_anterior:
-            if geodesic(new_location, location).km <= 5:
+            if geodesic(new_location, location).km <= 2:
                 count_semana_anterior
         
         tupla_semana = count_semana_actual, count_mes_anterior
@@ -264,4 +262,72 @@ class Datos:
         delito_promedio = df_map_box['TIPO_DELITO_DESC'].describe().top
         hechos_delito_promedio = int(df_map_box[df_map_box['TIPO_DELITO_DESC'] == df_map_box['TIPO_DELITO_DESC'].describe().top]['CONTACTO_ID'].count())
 
-        return df_map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio
+        # TABLA CONTEXTUAL
+        def idem_locatios(locations):
+            from collections import Counter
+
+            contador = Counter(map(tuple,locations))
+
+            repetidos = {location: count for location, count in contador.items() if count > 1}
+
+            return repetidos
+
+        def contextual_df(repetidos):
+            lat = []
+            lon = []
+            hechos = []
+            franja_horaria_promedio = []
+            tipo_delito_moda = []
+
+            for rep in repetidos.items():
+                lat.append(rep[0][0])
+                lon.append(rep[0][1])
+
+                df_subset = df_map_box[(df_map_box['LATITUD'] == rep[0][0]) & (df_map_box['LONGITUD'] == rep[0][1])]
+
+                hechos.append(rep[1])
+
+                franja_horaria_promedio.append(df_subset['FRANJA_HORARIA'].mean())
+
+                tipo_delito_moda.append(df_subset['TIPO_DELITO_DESC'].mode()[0])
+
+            dict_data = {
+                'LATITUD': lat,
+                'LONGITUD': lon,
+                'HECHOS': hechos,
+                'FRANJA_HORARIA_PROMEDIO': franja_horaria_promedio,
+                'TIPO_DELITO_MAS_FRECUENTE': tipo_delito_moda
+                    }
+            df_locations = pd.DataFrame(dict_data).sort_values(by='HECHOS', ascending=False).head(5)
+
+            geolocator = Nominatim(user_agent="AppCrimeStreamlit")
+            direcciones = []
+            for i, row in df_locations.iterrows():
+                try:
+                    direccion = geolocator.reverse(
+                            (row['LATITUD'], row['LONGITUD']),
+                            exactly_one=True,
+                            language='es'
+                        ).raw['address']
+                        
+                    if 'house_number' in direccion and 'road' in direccion:
+                            direcciones.append(f"{direccion['road']} {direccion['house_number']}")
+                    elif 'tourism' in direccion and 'road' in direccion:
+                            direcciones.append(f"{direccion['tourism']} {direccion['road']}")
+                    elif 'road' in direccion:
+                            direcciones.append(direccion['road'])
+                    else:
+                            direcciones.append("Dirección no disponible")
+                except Exception as e:
+                    print(f"Error con la ubicación {row['LATITUD']}, {row['LONGITUD']}: {e}")
+                    direcciones.append("Error en geolocalización")
+
+            df_locations['Direcciones'] = direcciones
+            df_locations = df_locations.rename(columns={'HECHOS':'Hechos',
+                                                                'FRANJA_HORARIA_PROMEDIO':'Franja horaria promedio',
+                                                                'TIPO_DELITO_MAS_FRECUENTE':'Delito más frecuente'})
+            return df_locations[['Direcciones', 'Franja horaria promedio', 'Delito más frecuente', 'Hechos']]
+            
+        df_locations = contextual_df(repetidos=idem_locatios(locations=df_map_box[['LATITUD','LONGITUD']][df_map_box['MES'] == datetime.now().month].values))
+
+        return df_map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio, df_locations
