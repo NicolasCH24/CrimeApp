@@ -286,7 +286,7 @@ class ModuloMap:
         map_box, kpi_mes, kpi_semana, kpi_delito, fig_delito, df_locations, narrativa = self.graph_dashboard_elements(comuna, barrio, _lat, _lon)
 
         with st.container(border=True):
-            col1, col2 = st.columns([16, 10])  # Ajusta las proporciones de las columnas
+            col1, col2 = st.columns([16, 10])
             with col1:
                 st.markdown("### Indicadores clave (KPIs) - Hechos")
                 kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
@@ -304,7 +304,7 @@ class ModuloMap:
                 with st.container(border=True):
                     st.plotly_chart(fig_delito, theme='streamlit')
             with col2:
-                st.markdown("#### Mapa del delito")  # Título para el mapa
+                st.markdown("#### Mapa del delito")
                 with st.container(border=True):
                     st.write(narrativa)
                 with st.container(border=True):
