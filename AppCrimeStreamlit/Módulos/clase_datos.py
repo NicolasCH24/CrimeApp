@@ -126,6 +126,11 @@ class Datos:
 
         return df_data
     
+
+    # GENERAR ÍNDICE DE PELIGROSIDAD
+    def get_hazard_index(self, df_data):
+        pass
+    
     def get_actual_location_table(self, lat, lon):
         clase_datos = Datos()
         # Localizacion actual
