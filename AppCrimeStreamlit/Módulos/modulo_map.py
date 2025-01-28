@@ -273,17 +273,17 @@ class ModuloMap:
         )
 
         # NARRATIVA
-        _df = df_locations
-        agent = DataframeAgent(_df)
-        narrativa = agent.invoke("""Tu informacion está en: print(df[['Direcciones', 'Franja horaria promedio', 'Delito más frecuente', 'Hechos']])
-                                    Retorna recomedacion para el ciudadano basandote en donde, cuando y detalles.
-                                    """)['output']
+        #_df = df_locations
+        #agent = DataframeAgent(_df)
+        #narrativa = agent.invoke("""Tu informacion está en: print(df[['Direcciones', 'Franja horaria promedio', 'Delito más frecuente', 'Hechos']])
+        #                            Retorna recomedacion para el ciudadano basandote en donde, cuando y detalles.
+        #                            """)['output']
 
-        return map_box, kpi_mes, kpi_semana, kpi_delito, fig_delitos, df_locations, narrativa
+        return map_box, kpi_mes, kpi_semana, kpi_delito, fig_delitos, df_locations
     
     def dashboard(self, _lat, _lon):
         tabla, comuna, barrio = self.graph_new_table(_lat, _lon)
-        map_box, kpi_mes, kpi_semana, kpi_delito, fig_delito, df_locations, narrativa = self.graph_dashboard_elements(comuna, barrio, _lat, _lon)
+        map_box, kpi_mes, kpi_semana, kpi_delito, fig_delito, df_locations = self.graph_dashboard_elements(comuna, barrio, _lat, _lon)
 
         with st.container(border=True):
             col1, col2 = st.columns([16, 10])
@@ -305,8 +305,6 @@ class ModuloMap:
                     st.plotly_chart(fig_delito, theme='streamlit')
             with col2:
                 st.markdown("#### Mapa del delito")
-                with st.container(border=True):
-                    st.write(narrativa)
                 with st.container(border=True):
                     st.pydeck_chart(map_box, use_container_width=True, height=690)
 
