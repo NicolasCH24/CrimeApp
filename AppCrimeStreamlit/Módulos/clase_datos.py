@@ -129,7 +129,35 @@ class Datos:
 
     # GENERAR ÍNDICE DE PELIGROSIDAD
     def get_hazard_index(self, df_data):
-        pass
+        df = df_data.rename(columns={'Fecha':'FECHA','Fraja Horaria':'FRANJA_HORARIA',
+                                     'Comuna':'COMUNA_NUM','Barrio':'BARRIO_MUM',
+                                     'Zona':'ZONA','ZonaPeligroIndice':'ZONA_PELIGRO_INDICE'})
+            # Serie temporal
+        df['FECHA'] = pd.to_datetime(df['FECHA'])
+        df['MES'] = df['FECHA'].dt.month 
+        df['DIA_DEL_MES'] = df['FECHA'].dt.day  
+        df['DIA_DEL_AÑO'] = df['FECHA'].dt.day_of_year
+        df['SEMANA_DEL_AÑO'] = df['FECHA'].dt.isocalendar().week
+        df['SEMANA_DEL_AÑO'] = df['SEMANA_DEL_AÑO'].astype(int) 
+        df['TRIMESTRE'] = df['FECHA'].dt.quarter  
+        df['DIA_DE_LA_SEMANA'] = df['FECHA'].dt.dayofweek 
+        
+        df.replace('0:00', 0, inplace=True)
+        df['FRANJA_HORARIA'] = df['FRANJA_HORARIA'].astype(int)
+
+        df['ES_FIN_DE_SEMANA'] = df['DIA_DE_LA_SEMANA'].apply(lambda x: 1 if x in [5, 6] else 0)
+        df['ESTACION'] = df['MES'].apply(lambda x: 4 if x in [12, 1, 2] else (1 if x in [3, 4, 5] else (2 if x in [6, 7, 8] else 3)))
+
+        bins = [0, 6, 12, 18, 24]
+        labels = [1, 2, 3, 4]
+        df['HORARIO_CATEGORIZADO'] = pd.cut(df['FRANJA_HORARIA'], bins=bins, labels=labels, right=False)
+        df['HORARIO_CATEGORIZADO'] = df['HORARIO_CATEGORIZADO'].astype(int)
+
+        df_time_series = df[['FECHA', 'LATITUD', 'LONGITUD', 'ESTACION', 'MES', 'TRIMESTRE',
+                                    'SEMANA_DEL_AÑO', 'DIA_DEL_AÑO', 'DIA_DEL_MES', 'DIA_DE_LA_SEMANA',
+                                    'ES_FIN_DE_SEMANA', 'HORARIO_CATEGORIZADO', 'FRANJA_HORARIA',
+                                    'ZONA', ]]
+        
     
     def get_actual_location_table(self, lat, lon):
         clase_datos = Datos()
