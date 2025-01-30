@@ -72,7 +72,7 @@ class ModuloMap:
         return m
     
     def graph_new_table(self, _lat, _lon):
-        df_table, comuna, barrio, hora = self.clase_datos.get_actual_location_table(_lat, _lon)
+        df_table, comuna, barrio, hora, peligrosidad = self.clase_datos.get_actual_location_table(_lat, _lon)
 
         tabla = st.dataframe(
             df_table,
@@ -93,7 +93,7 @@ class ModuloMap:
             hide_index=True,
         )
         
-        return tabla, comuna, barrio
+        return tabla, comuna, barrio, peligrosidad
 
     def graph_dashboard_elements(self, comuna, barrio, _lat, _lon):
         df_map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio, df_locations = self.clase_datos.get_elements_dashbord(_lat, _lon, comuna, barrio)
@@ -282,7 +282,7 @@ class ModuloMap:
         return map_box, kpi_mes, kpi_semana, kpi_delito, fig_delitos, df_locations
     
     def dashboard(self, _lat, _lon):
-        tabla, comuna, barrio = self.graph_new_table(_lat, _lon)
+        tabla, comuna, barrio, peligrosidad = self.graph_new_table(_lat, _lon)
         map_box, kpi_mes, kpi_semana, kpi_delito, fig_delito, df_locations = self.graph_dashboard_elements(comuna, barrio, _lat, _lon)
 
         with st.container(border=True):
@@ -305,6 +305,8 @@ class ModuloMap:
                     st.plotly_chart(fig_delito, theme='streamlit')
             with col2:
                 st.markdown("#### Mapa del delito")
+                with st.container(border=True):
+                    st.metric(value=peligrosidad, label="Peligrosidad %")
                 with st.container(border=True):
                     st.pydeck_chart(map_box, use_container_width=True, height=690)
 
