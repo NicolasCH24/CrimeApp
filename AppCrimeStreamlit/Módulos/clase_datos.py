@@ -24,16 +24,20 @@ locale.setlocale(locale.LC_TIME, 'es_ES')
 @st.cache_resource()
 def load_models():
     kmeans = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/kmeans.joblib')
-    scaler = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/scaler.joblib')
-    return kmeans, scaler
+    scaler_kmeans = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/scaler.joblib')
+    scaler_d_tree = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/scaler_d_tree.joblib')
+    d_tree_model = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/d_tree_reg.joblib')
+    return kmeans, scaler_kmeans, scaler_d_tree, d_tree_model
 
-kmeans, scaler = load_models()
-
+kmeans, scaler, scaler_d_tree, d_tree_model = load_models()
+        
 class Datos:
     ### SQL
     def __init__(self):
         self.scaler = scaler
         self.kmeans = kmeans
+        self.scaler_d_tree = scaler_d_tree
+        self.d_tree_model = d_tree_model
         self.hostname = "localhost"
         self.dbname = "crimewarehouse"
         self.uname = "root"
@@ -53,7 +57,6 @@ class Datos:
     @staticmethod
     @st.cache_data
     def get_data_table(_df):
-        # Configuración local
         # DF Table data
         _df['FECHA'] = pd.to_datetime(_df['FECHA'])
         _df['DIA_SEMANA'] = _df['FECHA'].dt.strftime("%A")
@@ -129,10 +132,10 @@ class Datos:
 
     # GENERAR ÍNDICE DE PELIGROSIDAD
     def get_hazard_index(self, df_data):
-        df = df_data.rename(columns={'Fecha':'FECHA','Fraja Horaria':'FRANJA_HORARIA',
-                                     'Comuna':'COMUNA_NUM','Barrio':'BARRIO_MUM',
+        df = df_data.rename(columns={'Fecha':'FECHA','Franja Horaria':'FRANJA_HORARIA',
+                                     'Comuna':'COMUNA_NUM','Barrio':'BARRIO_NUM',
                                      'Zona':'ZONA','ZonaPeligroIndice':'ZONA_PELIGRO_INDICE'})
-            # Serie temporal
+        # SERIE TEMPORAL
         df['FECHA'] = pd.to_datetime(df['FECHA'])
         df['MES'] = df['FECHA'].dt.month 
         df['DIA_DEL_MES'] = df['FECHA'].dt.day  
@@ -153,16 +156,51 @@ class Datos:
         df['HORARIO_CATEGORIZADO'] = pd.cut(df['FRANJA_HORARIA'], bins=bins, labels=labels, right=False)
         df['HORARIO_CATEGORIZADO'] = df['HORARIO_CATEGORIZADO'].astype(int)
 
-        df_time_series = df[['FECHA', 'LATITUD', 'LONGITUD', 'ESTACION', 'MES', 'TRIMESTRE',
-                                    'SEMANA_DEL_AÑO', 'DIA_DEL_AÑO', 'DIA_DEL_MES', 'DIA_DE_LA_SEMANA',
-                                    'ES_FIN_DE_SEMANA', 'HORARIO_CATEGORIZADO', 'FRANJA_HORARIA',
-                                    'ZONA', ]]
-        
+        # LOCALIZACION
+        df['COMUNA_NUM'] = df['COMUNA_NUM'].apply(lambda x: 
+            1 if x == 'Comuna 1' else 
+            2 if x == 'Comuna 2' else 
+            3 if x == 'Comuna 3' else 
+            4 if x == 'Comuna 4' else 
+            5 if x == 'Comuna 5' else 
+            6 if x == 'Comuna 6' else 
+            7 if x == 'Comuna 7' else 
+            8 if x == 'Comuna 8' else 
+            9 if x == 'Comuna 9' else 
+            10 if x == 'Comuna 10' else 
+            11 if x == 'Comuna 11' else 
+            12 if x == 'Comuna 12' else 
+            13 if x == 'Comuna 13' else 
+            14 if x == 'Comuna 14' else 
+            15 if x == 'Comuna 15' else None)
+
+        barrio_dict = {
+            'Retiro': 1, 'San Nicolas': 2, 'Puerto Madero': 3, 'San Telmo': 4, 'Monserrat': 5, 'Constitucion': 6,
+            'Recoleta': 7, 'Balvanera': 8, 'San Cristobal': 9, 'Boca': 10, 'Barracas': 11, 'Parque Patricios': 12, 
+            'Nueva Pompeya': 13, 'Almagro': 14, 'Boedo': 15, 'Caballito': 16, 'Flores': 17, 'Parque Chacabuco': 18,
+            'Villa Soldati': 19, 'Villa Riachuelo': 20, 'Villa Lugano': 21, 'Liniers': 22, 'Mataderos': 23, 
+            'Parque Avellaneda': 24, 'Villa Real': 25, 'Monte Castro': 26, 'Versalles': 27, 'Floresta': 28, 
+            'Velez Sarsfield': 29, 'Villa Luro': 30, 'Villa Devoto': 31, 'Villa Del Parque': 32, 'Villa Santa Rita': 33, 
+            'Villa Gral. Mitre': 34, 'Coghlan': 35, 'Saavedra': 36, 'Villa Urquiza': 37, 'Villa Pueyrredon': 38, 
+            'Nuñez': 39, 'Belgrano': 40, 'Colegiales': 41, 'Palermo': 42, 'Chacarita': 43, 'Villa Crespo': 44, 
+            'Paternal': 45, 'Villa Ortuzar': 46, 'Agronomia': 47, 'Parque Chas': 48
+        }
+        df['BARRIO_NUM'] = df['BARRIO_NUM'].map(barrio_dict)
+
+            # ESCALADO DE DATOS Y PREDICCION
+        df = df[['ESTACION', 'TRIMESTRE', 'MES', 'SEMANA_DEL_AÑO', 'DIA_DEL_AÑO', 'DIA_DEL_MES', 'ES_FIN_DE_SEMANA', 'DIA_DE_LA_SEMANA', 'HORARIO_CATEGORIZADO', 'FRANJA_HORARIA', 'ZONA', 'ZONA_PELIGRO_INDICE', 'COMUNA_NUM', 'BARRIO_NUM']]
+        df_scaled = self.scaler_d_tree.transform(df)
+        peligrosidad = round(float(self.d_tree_model.predict(df_scaled)) * 100)
+
+        return peligrosidad
     
     def get_actual_location_table(self, lat, lon):
         clase_datos = Datos()
         # Localizacion actual
         df_data = clase_datos.get_current_location(lat, lon)
+        # Peligrosidad 
+        peligrosidad = self.get_hazard_index(df_data)
+        # Datos
         comuna = df_data['Comuna'].values[0]
         comuna = comuna.upper()
         barrio = df_data['Barrio'].values[0]
@@ -211,7 +249,7 @@ class Datos:
             }
         )
 
-        return df_tabla, comuna, barrio, hora
+        return df_tabla, comuna, barrio, hora, peligrosidad
     
     def get_elements_dashbord(self, _lat, _lon, comuna, barrio):
         new_location = _lat, _lon
