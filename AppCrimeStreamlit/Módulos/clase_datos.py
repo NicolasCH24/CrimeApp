@@ -12,6 +12,7 @@ from joblib import load
 # LOCALIZACION
 from geopy import Nominatim
 from geopy.distance import geodesic
+from collections import Counter
 
 # BASE DE DATOS
 from sqlalchemy import create_engine
@@ -20,7 +21,7 @@ from sqlalchemy import create_engine
 import locale
 locale.setlocale(locale.LC_TIME, 'es_ES')
 
-# KMEANS
+# KMEANS, D TREEG MODEL, SCALERS
 @st.cache_resource()
 def load_models():
     kmeans = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/kmeans.joblib')
@@ -46,16 +47,15 @@ class Datos:
         self.engine = create_engine("mysql+pymysql://{user}:{pw}@{host}/{db}"
 				.format(host=self.hostname, db=self.dbname, user=self.uname, pw=self.pwd))
         
-    @st.cache_data
+    @st.cache_data()
     def get_df_by_query(_self, query):
         db = _self.engine
         df = pd.read_sql(query, db)
-        print("ejecutando query")
         return df
     
     ### DATOS DE PAGINA DE SELECCION DE DATOS
     @staticmethod
-    @st.cache_data
+    @st.cache_data()
     def get_data_table(_df):
         # DF Table data
         _df['FECHA'] = pd.to_datetime(_df['FECHA'])
@@ -129,7 +129,6 @@ class Datos:
 
         return df_data
     
-
     # GENERAR ÍNDICE DE PELIGROSIDAD
     def get_hazard_index(self, df_data):
         df = df_data.rename(columns={'Fecha':'FECHA','Franja Horaria':'FRANJA_HORARIA',
@@ -158,21 +157,21 @@ class Datos:
 
         # LOCALIZACION
         df['COMUNA_NUM'] = df['COMUNA_NUM'].apply(lambda x: 
-            1 if x == 'Comuna 1' else 
-            2 if x == 'Comuna 2' else 
-            3 if x == 'Comuna 3' else 
-            4 if x == 'Comuna 4' else 
-            5 if x == 'Comuna 5' else 
-            6 if x == 'Comuna 6' else 
-            7 if x == 'Comuna 7' else 
-            8 if x == 'Comuna 8' else 
-            9 if x == 'Comuna 9' else 
-            10 if x == 'Comuna 10' else 
-            11 if x == 'Comuna 11' else 
-            12 if x == 'Comuna 12' else 
-            13 if x == 'Comuna 13' else 
-            14 if x == 'Comuna 14' else 
-            15 if x == 'Comuna 15' else None)
+                                                    1 if x == 'Comuna 1' else 
+                                                    2 if x == 'Comuna 2' else 
+                                                    3 if x == 'Comuna 3' else 
+                                                    4 if x == 'Comuna 4' else 
+                                                    5 if x == 'Comuna 5' else 
+                                                    6 if x == 'Comuna 6' else 
+                                                    7 if x == 'Comuna 7' else 
+                                                    8 if x == 'Comuna 8' else 
+                                                    9 if x == 'Comuna 9' else 
+                                                    10 if x == 'Comuna 10' else 
+                                                    11 if x == 'Comuna 11' else 
+                                                    12 if x == 'Comuna 12' else 
+                                                    13 if x == 'Comuna 13' else 
+                                                    14 if x == 'Comuna 14' else 
+                                                    15 if x == 'Comuna 15' else None)
 
         barrio_dict = {
             'Retiro': 1, 'San Nicolas': 2, 'Puerto Madero': 3, 'San Telmo': 4, 'Monserrat': 5, 'Constitucion': 6,
@@ -194,7 +193,7 @@ class Datos:
 
         return peligrosidad
     
-    def get_actual_location_table(self, lat, lon):
+    def get_location_data(self, lat, lon):
         clase_datos = Datos()
         # Localizacion actual
         df_data = clase_datos.get_current_location(lat, lon)
@@ -206,52 +205,10 @@ class Datos:
         barrio = df_data['Barrio'].values[0]
         barrio = barrio.upper()
         hora = df_data['Franja Horaria'].values[0]
+
+        return comuna, barrio, hora, peligrosidad
     
-        # Obtenemos datos
-        query = """
-            SELECT
-                fct.FECHA, fct.FRANJA_HORARIA, dimc.COMUNA_DESC, dimb.BARRIO_DESC, fct.CONTACTO_ID
-            FROM
-                FCT_HECHOS fct
-            JOIN
-                DIM_BARRIOS dimb
-            ON
-                fct.BARRIO_KEY = dimb.BARRIO_KEY
-            JOIN
-                DIM_COMUNAS dimc
-            ON
-                fct.COMUNA_KEY = dimc.COMUNA_KEY
-            WHERE
-                YEAR(FECHA) = (SELECT MAX(YEAR(FECHA)) FROM FCT_HECHOS)
-                AND dimc.COMUNA_DESC = %(comuna)s
-                AND dimb.BARRIO_DESC = %(barrio)s
-            GROUP BY
-                FECHA, COMUNA_DESC, BARRIO_DESC, CONTACTO_ID
-            ORDER BY
-                FECHA;
-            """
-
-            # Ejecutar consulta con parámetros
-        df_db = pd.read_sql(query, self.engine, params={"comuna": comuna, "barrio": barrio})
-        
-        df_db['FECHA'] = pd.to_datetime(df_db['FECHA'])
-        df_db['MES'] = df_db['FECHA'].dt.strftime("%b")
-
-        df_tabla = pd.DataFrame(
-            {
-                'Fecha':[df_data['Fecha'].values[0]],
-                'Hora': [df_data['Franja Horaria'].values[0]],
-                'Comuna':[comuna],
-                'Barrio':[barrio],
-                'Zona 10':[df_data['ZonaPeligroIndice'].values[0]],
-                barrio:[df_db.groupby('MES').agg({'CONTACTO_ID':'count'}).values.flatten().tolist()],
-                'Franja horaria':[df_db.groupby('FRANJA_HORARIA').agg({'CONTACTO_ID':'count'}).values.flatten().tolist()]
-            }
-        )
-
-        return df_tabla, comuna, barrio, hora, peligrosidad
-    
-    def get_elements_dashbord(self, _lat, _lon, comuna, barrio):
+    def get_dashboard_data(self, _lat, _lon, comuna, barrio):
         new_location = _lat, _lon
         # DATOS MAP BOX
         query = """
@@ -288,8 +245,7 @@ class Datos:
             """
         df_map_box = pd.read_sql(query, con=self.engine, params={'comuna':comuna, 'barrio':barrio})
 
-        # KPIS
-        # KPI HECHOS MES ACTUAL VS ANTERIOR EN RADIO DE 5 KM
+        # KPI HECHOS MES ACTUAL VS ANTERIOR EN RADIO DE 1 KM
         df_map_box['FECHA'] = pd.to_datetime(df_map_box['FECHA'])
         df_map_box['MES'] = df_map_box['FECHA'].dt.month
       
@@ -299,16 +255,16 @@ class Datos:
         locations_mes_anterior = df_map_box[['LATITUD', 'LONGITUD']][df_map_box['MES'] == (datetime.now() - pd.DateOffset(months=1)).month].values
 
         for location in locations_mes_actual:
-            if geodesic(new_location, location).km <= 5:
+            if geodesic(new_location, location).km <= 1:
                 count_mes_actual += 1
 
         for location in locations_mes_anterior:
-            if geodesic(new_location, location).km <= 5:
+            if geodesic(new_location, location).km <= 1:
                 count_mes_anterior += 1
         
         tupla_mes = count_mes_actual, count_mes_anterior
 
-        # KPI SEMANA ACTUAL VS SEMANA ANTERIOR RADIO 5 KM
+        # KPI SEMANA ACTUAL VS SEMANA ANTERIOR RADIO 1 KM
         df_map_box['SemanaDelAño'] = df_map_box['FECHA'].dt.isocalendar().week
         ultima_semana = int(df_map_box['SemanaDelAño'].max())
         semana_anterior = ultima_semana - 1
@@ -320,11 +276,11 @@ class Datos:
         locations_semana_anterior = df_map_box[['LATITUD', 'LONGITUD']][df_map_box['SemanaDelAño'] == semana_anterior].values
 
         for location in locations_semana_actual:
-            if geodesic(new_location, location).km <= 2:
+            if geodesic(new_location, location).km <= 1:
                 count_semana_actual += 1
 
         for location in locations_semana_anterior:
-            if geodesic(new_location, location).km <= 2:
+            if geodesic(new_location, location).km <= 1:
                 count_semana_anterior
         
         tupla_semana = count_semana_actual, count_mes_anterior
@@ -335,8 +291,6 @@ class Datos:
 
         # TABLA CONTEXTUAL
         def idem_locatios(locations):
-            from collections import Counter
-
             contador = Counter(map(tuple,locations))
 
             repetidos = {location: count for location, count in contador.items() if count > 1}
