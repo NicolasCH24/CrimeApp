@@ -1,9 +1,6 @@
 # STREAMLIT
 import streamlit as st
 
-# AGENT
-#from Módulos.clase_ai import DataframeAgent
-
 # MAPA - GRAFICOS
 import folium as fl
 from streamlit_folium import st_folium
@@ -334,7 +331,7 @@ class ModuloMap:
         if "selected_location" not in st.session_state:
             st.session_state.selected_location = None
 
-        col1, col2 = st.columns([10, 5.5])
+        col1, col2 = st.columns([10, 3])
         with col1:
             with st.container(border=True):
                 destino = st.text_input("Ingresá destino aquí o agregar marcador en el mapa.")
@@ -343,11 +340,9 @@ class ModuloMap:
                 styled_df = df_table.style.background_gradient(cmap="YlOrBr", axis=None)
                 st.markdown("Grilla horaria - Último año")
                 tabla_grilla = st.dataframe(styled_df, use_container_width=True, hide_index=False)
-
-        with col2:
-            with st.container(border=True, height=663):
+            with st.container(border=True):
                 st.write("Selecciona un punto en el mapa.")
-                map = st_folium(m, width="%100", height=590, use_container_width=False)
+                map = st_folium(m, width="%100", height=500, use_container_width=True)
                 if map.get("last_clicked"):
                     _lat = map["last_clicked"]["lat"]
                     _lon = map["last_clicked"]["lng"]
@@ -355,4 +350,23 @@ class ModuloMap:
                     st.rerun()
 
 
-### LLEVAR GRAFICO DE BARRAS Y MEJORAR LA SALIDA DE LA NARRATIVA DE NOTICIAS
+        with col2:
+            with st.container(border=True):
+                st.markdown(
+                    """
+                    ### Puntos clave:
+                     - Debemos tener en cuenta que en los horarios de la madrugada no hay tanta cantidad de delitos como en el resto del dia.
+                     - Esto no significa que sea menos peligroso, sinó que hay menos ciudadanos en la calle.
+                     
+                     Por ende si se cometen crimenes frente a mayor cantidad de ciudadanos presentes en ese horario quizás estemos frente a **un momento del día bastante peligroso**.
+                    """
+                )
+            #with st.container(border=True, height=663):
+                #st.write("Selecciona un punto en el mapa.")
+                #map = st_folium(m, width="%100", height=590, use_container_width=False)
+                #if map.get("last_clicked"):
+                    #_lat = map["last_clicked"]["lat"]
+                    #_lon = map["last_clicked"]["lng"]
+                    #st.session_state.selected_location = [_lat, _lon]
+                    #st.rerun()
+
