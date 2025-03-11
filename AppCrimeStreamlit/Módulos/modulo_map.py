@@ -337,7 +337,7 @@ class ModuloMap:
                 destino = st.text_input("Ingresá destino aquí o agregar marcador en el mapa.")
                 franja_horaria = st.slider("Seleccioná en qué momento del día vas a concurrir.",
                                         value=(time(11, 30)))
-                styled_df = df_table.style.background_gradient(cmap="YlOrBr", axis=None)
+                styled_df = df_table.style.background_gradient(cmap="YlOrBr")
                 st.markdown("Grilla horaria - Último año")
                 tabla_grilla = st.dataframe(styled_df, use_container_width=True, hide_index=False)
             with st.container(border=True):

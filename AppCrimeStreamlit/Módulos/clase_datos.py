@@ -59,25 +59,24 @@ class Datos:
     def get_data_table(_df):
         # DF Table data
         _df['FECHA'] = pd.to_datetime(_df['FECHA'])
-        _df['DIA_SEMANA'] = _df['FECHA'].dt.strftime("%A")
+        _df['Día semana'] = _df['FECHA'].dt.day_name(locale="es")
 
-        df_data = pd.DataFrame(
-            {'CONTACTO_ID':_df['CONTACTO_ID'].values,
-             'Dia semana':_df['DIA_SEMANA'].values,
-             'Hora':_df['FRANJA_HORARIA'].values}
+        bins = [0, 6, 12, 18, 24]
+        labels = ['Madrugada', 'Mañana', 'Tarde', 'Noche']
+
+        _df['Horario categorizado'] = pd.cut(_df['FRANJA_HORARIA'], bins=bins, labels=labels, right=False)
+
+        df_table = _df.pivot_table(
+            index='Horario categorizado',
+            columns='Día semana',
+            values='CONTACTO_ID',
+            aggfunc='count',
+            fill_value=0
         )
+        df_table.index = df_table.index.astype(str)
 
-        orden_dias = ['lunes','martes','miércoles','jueves','viernes','sábado','domingo']
-        df_data['Dia semana'] = pd.Categorical(_df['DIA_SEMANA'], categories=orden_dias, ordered=True)
-
-        df_table = df_data.pivot_table(
-            index = 'Hora',
-            columns ='Dia semana',
-            values = 'CONTACTO_ID',
-            aggfunc ='count',
-            fill_value=0,
-            observed=False
-        )
+        df_table = df_table[['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado',
+            'Domingo']]
 
         return df_table
 
