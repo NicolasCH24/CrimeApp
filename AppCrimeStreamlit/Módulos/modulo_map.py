@@ -307,9 +307,12 @@ class ModuloMap:
                 with st.container(border=True):
                     st.plotly_chart(kpi_peligrosidad)
                 with st.container(border=True):
-                    st.pydeck_chart(map_box, use_container_width=True, height=690)
+                    st.pydeck_chart(map_box, use_container_width=True, height=669)
 
-    def container_map(self, m):
+    def container_select_data(self):
+        # DEPENDENCIAS
+        import datetime
+
         # DATOS GLOBALES
         _df = self.clase_datos.get_df_by_query(query="""
                                             SELECT
@@ -331,42 +334,111 @@ class ModuloMap:
         if "selected_location" not in st.session_state:
             st.session_state.selected_location = None
 
-        col1, col2 = st.columns([10, 3])
-        with col1:
-            with st.container(border=True):
-                destino = st.text_input("Ingresá destino aquí o agregar marcador en el mapa.")
-                franja_horaria = st.slider("Seleccioná en qué momento del día vas a concurrir.",
-                                        value=(time(11, 30)))
-                styled_df = df_table.style.background_gradient(cmap="YlOrBr")
-                st.markdown("Grilla horaria - Último año")
-                tabla_grilla = st.dataframe(styled_df, use_container_width=True, hide_index=False)
-            with st.container(border=True):
-                st.write("Selecciona un punto en el mapa.")
-                map = st_folium(m, width="%100", height=500, use_container_width=True)
-                if map.get("last_clicked"):
-                    _lat = map["last_clicked"]["lat"]
-                    _lon = map["last_clicked"]["lng"]
-                    st.session_state.selected_location = [_lat, _lon]
-                    st.rerun()
+        # INTERFAZ DE SIDEBAR
 
+        with st.container(border=True):
+            st.markdown("""## 📍 **Conocé tu situación actual**""")
+            st.button("Ubicación actual", use_container_width=True)
+
+        with st.container(border=True):
+            st.markdown("""## 🗓️ **Consulta programada**""")
+            destino = st.text_input("Ingresá destino aquí.")
+            dia = st.date_input("Seleccioná un día", datetime.date(2023, 11, 1))
+            franja_horaria = st.slider("¿En qué momento del día vas a concurrir?.",
+                                        value=(time(11, 30)))
+            #styled_df = df_table.style.background_gradient(cmap="YlOrBr")
+            #st.markdown("Grilla horaria - Último año")
+            #tabla_grilla = st.dataframe(styled_df, use_container_width=True, hide_index=False)
+
+
+    def container_main_map(self, m):
+        # DATOS GLOBALES
+        _df = self.clase_datos.get_df_by_query(query="""
+                                            SELECT
+                                            FECHA,
+                                            FRANJA_HORARIA,
+                                            CONTACTO_ID
+                                            FROM
+                                            FCT_HECHOS
+                                            WHERE YEAR(FECHA) = (SELECT MAX(YEAR(FECHA)) FROM FCT_HECHOS)
+                                            GROUP BY
+                                            FECHA, FRANJA_HORARIA, CONTACTO_ID
+                                            ORDER BY
+                                            FECHA;
+                                            """)
+        # SESSION STATES
+        if "selected_location" not in st.session_state:
+            st.session_state.selected_location = None
+
+        ## DATOS
+        año, mes_actual, mes_anterior, fecha_min, fecha_max = self.clase_datos.get_contextual_time_series()
+
+        lista_delitos = self.clase_datos.get_contextual_crimes()
+
+        # INTERFAZ CENTRAL
+        subtitulo_funcionamiento = st.markdown("""
+            ## 📝 ¿Cómo funciona?
+            """)
+        col1, col2, col3 = st.columns(3)
+        #with col1:
+        #    st.markdown("## 📅 Rango temporal de datos  \n"
+        #                    "Nuestros análisis van a corresponder a los últimos **dos meses**, incluyendo: \n"  
+        #                    f"- **Mes actual:** {mes_actual} {str(año)} \n"  
+        #                    f"- **Mes anterior:** {mes_anterior} {str(año)} \n"  
+        #                    f"- **Rango:** {fecha_min} - {fecha_max}")
+        
+        with col1:
+            st.markdown("""
+            - 📍 **Conocé tu situación actual:** Si estás en un punto en particular de la ciudad, hacé clic en **Ubicación actual** para obtener la información relevante.  
+            """)
 
         with col2:
-            with st.container(border=True):
-                st.markdown(
-                    """
-                    ### Puntos clave:
-                     - Debemos tener en cuenta que en los horarios de la madrugada no hay tanta cantidad de delitos como en el resto del dia.
-                     - Esto no significa que sea menos peligroso, sinó que hay menos ciudadanos en la calle.
-                     
-                     Por ende si se cometen crimenes frente a mayor cantidad de ciudadanos presentes en ese horario quizás estemos frente a **un momento del día bastante peligroso**.
-                    """
-                )
-            #with st.container(border=True, height=663):
-                #st.write("Selecciona un punto en el mapa.")
-                #map = st_folium(m, width="%100", height=590, use_container_width=False)
-                #if map.get("last_clicked"):
-                    #_lat = map["last_clicked"]["lat"]
-                    #_lon = map["last_clicked"]["lng"]
-                    #st.session_state.selected_location = [_lat, _lon]
-                    #st.rerun()
+            st.markdown("""
+            - 🗓️ **Consulta programada:** Si necesitás ir a algún lugar en un día y hora particular, seleccioná esos parámetros en la barra lateral y obtené el informe.
+            """)
+
+        with col3:
+            st.markdown("""
+            - 🌍 **Experiencia visual:** Para un enfoque más interactivo, hacé clic en el mapa sobre el punto al que querés dirigirte, y se generarán los datos relevantes para vos.
+            """)
+
+        subtitulo_expectativas = st.markdown("""
+            ## 🧐 ¿Con qué información te vas a encontrar?
+            """)
+        
+        expectativas = st.markdown("""
+            Basados en un exhaustivo análisis del crimen en CABA y tu situación geografica podrás conocer:
+            - **Puntos de inflexión:** Localizaciones específicas a tener en cuenta.
+            - **Mapa del delito:** Para una visualización clara de lo que suele suceder cerca de donde vos estás.
+            - **Lista de delitos:** Delitos más frecuentes y su cantidad de hechos.
+            - **ÍNDICE DE PELIGROSIDAD:** Un indice de peligro basado en los algorítmos mejores entrenados de estudio criminalistico.
+            """)
+
+        
+        #with col3:
+        #    st.markdown("## 🚨 Nuestros delitos a analizar")
+        #    st.markdown('\n'.join([f"- {delito}" for delito in lista_delitos]))
+
+            
+                    
+                    ## ME GUSTARIA TENER AL LADO DE EL MARKWOWN ANTETIOR LA LISTA DE MIS DELITOS POR ITEMS PERO ARRIBA UN TITPO COMO ... NUESTROS DELITOS A ANALIZAR, (LA LISTA )
+                    #st.markdown(
+                    #            """
+                    #            ### Puntos clave:
+                    #            - Debemos tener en cuenta que en los horarios de la madrugada no hay tanta cantidad de delitos como en el resto del dia.
+                    #            - Esto no significa que sea menos peligroso, sinó que hay menos ciudadanos en la calle.
+                    #            
+                    #            Por ende si se cometen crimenes frente a mayor cantidad de ciudadanos presentes en ese horario quizás estemos frente a **un momento del día bastante peligroso**.
+                    #            """
+                    #        )
+
+
+        with st.container(border=True):
+            st.markdown("""🌍 **Experiencia visual: Seleccioná un punto en el mapa.**""")
+            map = st_folium(m, width="%100", height=500, use_container_width=True)
+            if map.get("last_clicked"):
+                _lat = map["last_clicked"]["lat"]
+                _lon = map["last_clicked"]["lng"]
+                st.session_state.selected_location = [_lat, _lon]
+                st.rerun()
 

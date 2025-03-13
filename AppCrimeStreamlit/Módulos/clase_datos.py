@@ -54,6 +54,49 @@ class Datos:
         return df
     
     ### DATOS DE PAGINA DE SELECCION DE DATOS
+    def get_contextual_time_series(self):
+        query = """
+        SELECT
+        FECHA
+        FROM
+        FCT_HECHOS
+        WHERE YEAR(FECHA) = (SELECT MAX(YEAR(FECHA)) FROM FCT_HECHOS)
+        """
+        df = self.get_df_by_query(query)
+        df['FECHA'] = pd.to_datetime(df['FECHA'])
+
+        df['mes_desc'] = df['FECHA'].dt.month_name(locale='es')
+        df['mes'] = df['FECHA'].dt.month
+
+        mes_actual = int(df['mes'].max())
+        if mes_actual == 1:
+            mes_anterior = 12
+        else:
+            mes_anterior = mes_actual - 1
+
+        df = df[df['mes'].isin((mes_actual, mes_anterior))].sort_values(by='FECHA', ascending=False)
+
+        fecha_min = df['FECHA'].dt.strftime("%Y-%m-%d").min()
+        fecha_max = df['FECHA'].dt.strftime("%Y-%m-%d").max()
+        mes_actual = df['mes_desc'].head(1).values[0]
+        mes_anterior = df['mes_desc'].tail(1).values[0]
+        año = df['FECHA'].dt.year.unique()[0]
+
+        return año, mes_actual, mes_anterior, fecha_min, fecha_max
+    
+    def get_contextual_crimes(self):
+        query = """
+                SELECT
+                TIPO_DELITO_DESC
+                FROM
+                DIM_TIPO_DELITO"""
+        
+        df = self.get_df_by_query(query)
+
+        lista_delitos = df['TIPO_DELITO_DESC'].unique()
+        
+        return lista_delitos
+    
     @staticmethod
     @st.cache_data()
     def get_data_table(_df):
@@ -71,7 +114,8 @@ class Datos:
             columns='Día semana',
             values='CONTACTO_ID',
             aggfunc='count',
-            fill_value=0
+            fill_value=0,
+            observed=False
         )
         df_table.index = df_table.index.astype(str)
 
@@ -185,7 +229,7 @@ class Datos:
         }
         df['BARRIO_NUM'] = df['BARRIO_NUM'].map(barrio_dict)
 
-            # ESCALADO DE DATOS Y PREDICCION
+        # ESCALADO DE DATOS Y PREDICCION
         df = df[['ESTACION', 'TRIMESTRE', 'MES', 'SEMANA_DEL_AÑO', 'DIA_DEL_AÑO', 'DIA_DEL_MES', 'ES_FIN_DE_SEMANA', 'DIA_DE_LA_SEMANA', 'HORARIO_CATEGORIZADO', 'FRANJA_HORARIA', 'ZONA', 'ZONA_PELIGRO_INDICE', 'COMUNA_NUM', 'BARRIO_NUM']]
         df_scaled = self.scaler_d_tree.transform(df)
         peligrosidad = round(float(self.d_tree_model.predict(df_scaled)) * 100)
