@@ -1,6 +1,9 @@
 # STREAMLIT
 import streamlit as st
 
+# REQUESTS
+import requests
+
 # MAPA - GRAFICOS
 import folium as fl
 from streamlit_folium import st_folium
@@ -328,6 +331,8 @@ class ModuloMap:
                                             FECHA;
                                             """)
         df_table = self.clase_datos.get_data_table(_df)
+
+
 
         # MODULO MAP
         # SESSION STATES
