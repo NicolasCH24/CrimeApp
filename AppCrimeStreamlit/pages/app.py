@@ -2,10 +2,15 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
 
-# MODULO MAPA
+# MODULOS Y CLASES
 from Módulos.modulo_map import ModuloMap
+from Módulos.clase_graficos import Graficos
 
+# MODULOS
 modulo_mapa = ModuloMap()
+
+# CLASES
+clase_graficos = Graficos()
 
 with st.sidebar:
     selected = option_menu('Menú', ['Mapa', 'Estadística',"Tabla personal"],
@@ -26,7 +31,7 @@ if selected == 'Mapa':
         st.title("Ciudad Autónoma de Buenos Aires")
 
 # CONTAINER MODULO MAPA & DASHBOARD
-    m = modulo_mapa.folium_map()
+    m = clase_graficos.folium_map()
     if st.session_state.selected_location:
         if st.button("Regresar"):
             mapa = modulo_mapa.container_main_map(m)
