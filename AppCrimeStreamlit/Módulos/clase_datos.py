@@ -174,6 +174,8 @@ class Datos:
     
     # GENERAR ÍNDICE DE PELIGROSIDAD
     def get_hazard_index(self, df_data):
+        pd.set_option('future.no_silent_downcasting', True)
+        
         df = df_data.rename(columns={'Fecha':'FECHA','Franja Horaria':'FRANJA_HORARIA',
                                      'Comuna':'COMUNA_NUM','Barrio':'BARRIO_NUM',
                                      'Zona':'ZONA','ZonaPeligroIndice':'ZONA_PELIGRO_INDICE'})
@@ -188,6 +190,7 @@ class Datos:
         df['DIA_DE_LA_SEMANA'] = df['FECHA'].dt.dayofweek 
         
         df.replace('0:00', 0, inplace=True)
+
         df['FRANJA_HORARIA'] = df['FRANJA_HORARIA'].astype(int)
 
         df['ES_FIN_DE_SEMANA'] = df['DIA_DE_LA_SEMANA'].apply(lambda x: 1 if x in [5, 6] else 0)

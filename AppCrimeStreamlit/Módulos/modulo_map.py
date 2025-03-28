@@ -27,7 +27,6 @@ class ModuloMap:
     def dashboard(self, _lat, _lon):
         comuna, barrio, hora, peligrosidad = self.clase_datos.get_location_data(_lat, _lon)
         map_box, kpi_mes, kpi_semana, kpi_delito, kpi_peligrosidad, fig_delito, df_locations = self.clase_graficos.graph_dashboard_elements(peligrosidad, comuna, barrio, _lat, _lon)
-
         with st.container(border=True):
             col1, col2 = st.columns([16, 10])
             with col1:
@@ -114,12 +113,17 @@ class ModuloMap:
         with st.container(border=True):
             st.markdown("""## 🗓️ **Consulta programada**""")
             input_destino = st.text_input("Recuerde solo ingresar solo **calle y altura:**")
-            location_data = geocode_address_with_retry(input_destino)
-            if location_data:
-                datos_dir = get_location_name_lat_lon(location_data)
-                st.write(datos_dir[0][0])
+            button_data = st.button(label="Buscar", icon=':material/touch_app:')
+            if button_data:
+                location_data = geocode_address_with_retry(input_destino)
+                if location_data:
+                    datos_dir = get_location_name_lat_lon(location_data)
+                    st.write(f"Resultado: {datos_dir[0][0]}")
+                    st.session_state.selected_location = [float(datos_dir[1][0]), float(datos_dir[2][0])]
+                else:
+                    st.write("No se encontraron resultados")
             else:
-                st.write("No se encontraron resultados")
+                button_data == False
             dia = st.date_input("Seleccioná un día", datetime.date(2023, 11, 1))
             franja_horaria = st.slider("¿En qué momento del día vas a concurrir?.",
                                             value=(time(11, 30)))
@@ -127,9 +131,9 @@ class ModuloMap:
             ##st.session_state.selected_location[_lat, _lon]
     def container_main_map(self, m):
             ## DATOS
-        año, mes_actual, mes_anterior, fecha_min, fecha_max = self.clase_datos.get_contextual_time_series()
+        #año, mes_actual, mes_anterior, fecha_min, fecha_max = self.clase_datos.get_contextual_time_series()
 
-        lista_delitos = self.clase_datos.get_contextual_crimes()
+        #lista_delitos = self.clase_datos.get_contextual_crimes()
 
         # INTERFAZ CENTRAL
         subtitulo_funcionamiento = st.markdown("""
@@ -188,14 +192,13 @@ class ModuloMap:
                         #            """
                         #        )
 
-
-        with st.container(border=True):
-            st.markdown("""🌍 **Experiencia visual: Seleccioná un punto en el mapa.**""")
-            map = st_folium(m, width="%100", height=500, use_container_width=True)
-            if map.get("last_clicked"):
-                _lat = map["last_clicked"]["lat"]
-                _lon = map["last_clicked"]["lng"]
-                st.session_state.selected_location = [_lat, _lon]
-                st.rerun()
+        with st.expander("""🌍 **Experiencia visual: Seleccioná un punto en el mapa.**"""):
+            with st.container(border=True):
+                map = st_folium(m, width="%100", height=500, use_container_width=True)
+                if map.get("last_clicked"):
+                    _lat = map["last_clicked"]["lat"]
+                    _lon = map["last_clicked"]["lng"]
+                    st.session_state.selected_location = [_lat, _lon]
+                    st.rerun()
 
     ## **LLEVAR MARCADOR AL MAPA LUEGO DE HABER TENIDO LA DIRECCION POR PARTE DEL BUSCADOR**
