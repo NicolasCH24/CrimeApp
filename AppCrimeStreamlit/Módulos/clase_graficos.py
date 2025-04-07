@@ -68,10 +68,10 @@ class Graficos:
         m.add_child(AddMarkerOnClick())
         return m
 
-    def graph_dashboard_elements(self, peligrosidad, comuna, barrio, _lat, _lon):
-        df_map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio, df_locations = self.clase_datos.get_dashboard_data(_lat, _lon, comuna, barrio)
+    def graph_dashboard_elements(self, peligrosidad, comuna, barrio, _lat, _lon, hora):
+        df_map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio, df_locations = self.clase_datos.get_dashboard_data(_lat, _lon, comuna, barrio, hora)
         df_bar = df_map_box
-        df_map_box = df_map_box[['LATITUD', 'LONGITUD']][df_map_box['FRANJA_HORARIA'] == datetime.now().hour]
+        df_map_box = df_map_box[['LATITUD', 'LONGITUD']][df_map_box['FRANJA_HORARIA'] == hora]
         # MAP BOX
         map_box = pdk.Deck(
             map_style='mapbox://styles/mapbox/light-v11',
@@ -108,7 +108,7 @@ class Graficos:
             value = tupla_mes[0],
             title = {"text": "Mes actual - Mes anterior",
                      "font": {"size": 14, "color": "white"}},
-            delta = {'reference': tupla_mes[1]}))
+            delta = {'reference':tupla_mes[1]}))
         
         kpi_mes.update_layout(
             #grid={'rows': 0, 'columns': 0, 'pattern': "independent"},
@@ -131,7 +131,7 @@ class Graficos:
             value= tupla_semana[0],
             title= {'text':"Semana actual - Semana anterior",
                     "font": {"size": 14, "color": "white"}},
-            delta = {'reference':tupla_mes[1]}
+            delta = {'reference':tupla_semana[1]}
         ))
 
         kpi_semana.update_layout(
@@ -217,7 +217,6 @@ class Graficos:
                 pad=4),
         
         )
-
         # GRAFICO DE BARRAS APILADAS
         df_grouped = df_bar.groupby(['TIPO_DELITO_DESC', 'FECHA']).agg({'CONTACTO_ID':'count'}).rename(columns={'CONTACTO_ID':'HECHOS'})
         df_grouped_totals = df_grouped.groupby('TIPO_DELITO_DESC')['HECHOS'].sum().reset_index()

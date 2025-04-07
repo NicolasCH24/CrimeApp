@@ -1,6 +1,9 @@
 # STREAMLIT
 import streamlit as st
 
+# DATOS
+import pandas as pd
+
 # REQUESTS
 import requests
 
@@ -15,49 +18,38 @@ from Módulos.clase_datos import Datos
 from Módulos.clase_graficos import Graficos
 
 # SESSION STATES
+if "selected_street" not in st.session_state:
+    st.session_state.selected_street = None
+
 if "selected_location" not in st.session_state:
     st.session_state.selected_location = None
+
+if "selected_hour" not in st.session_state:
+    st.session_state.selected_hour = None
 
 class ModuloMap:
     def __init__(self):
         self.clase_datos = Datos()
         self.clase_graficos = Graficos()
 
-        #  DASHBOARD DEL DELITO        
-    def dashboard(self, _lat, _lon):
-        comuna, barrio, hora, peligrosidad = self.clase_datos.get_location_data(_lat, _lon)
-        map_box, kpi_mes, kpi_semana, kpi_delito, kpi_peligrosidad, fig_delito, df_locations = self.clase_graficos.graph_dashboard_elements(peligrosidad, comuna, barrio, _lat, _lon)
-        with st.container(border=True):
-            col1, col2 = st.columns([16, 10])
-            with col1:
-                st.markdown("### Indicadores clave (KPIs) - Hechos")
-                kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
-                with kpi_col1:
-                    with st.container(border=True):
-                        st.plotly_chart(kpi_mes)
-                with kpi_col2:
-                    with st.container(border=True):
-                        st.plotly_chart(kpi_semana)
-                with kpi_col3:
-                    with st.container(border=True):
-                        st.plotly_chart(kpi_delito)
-                with st.container(border=True):
-                    st.dataframe(df_locations, use_container_width=True, hide_index=True)
-                with st.container(border=True):
-                    st.plotly_chart(fig_delito, theme='streamlit')
-            with col2:
-                st.markdown("#### Mapa del delito")
-                with st.container(border=True):
-                    st.plotly_chart(kpi_peligrosidad)
-                with st.container(border=True):
-                    st.pydeck_chart(map_box, use_container_width=True, height=669)
-
-        
-        # MODULO MAPA - SELECTORES
+    # CONTAINER SELECTORES
     def container_select_data(self):
         from datetime import time
 
-            # METODO DE BUSQUEDA DE LOCALIZACIÓN
+        # RETORNO DE BUSQUEDA
+        def get_location_name_lat_lon(location_data):
+            nombre = []
+            lat = []
+            lon = []
+            datos_dir = []
+            for location in location_data:
+                nombre.append(location.get('display_name'))
+                lat.append(location.get('lat'))
+                lon.append(location.get('lon'))
+                datos_dir = [nombre, lat, lon]
+
+            return datos_dir
+        # METODO DE BUSQUEDA DE LOCALIZACIÓN
         def geocode_address_with_retry(address, city='Caba', country='Argentina', retries=3):
             import time
             url = 'https://nominatim.openstreetmap.org/search'
@@ -90,62 +82,43 @@ class ModuloMap:
                     return None
             return None
             
-            # RETORNO DE BUSQUEDA
-        def get_location_name_lat_lon(location_data):
-            nombre = []
-            lat = []
-            lon = []
-            datos_dir = []
-            for location in location_data:
-                nombre.append(location.get('display_name'))
-                lat.append(location.get('lat'))
-                lon.append(location.get('lon'))
-                datos_dir = [nombre, lat, lon]
 
-            return datos_dir
-        # MODULO MAP
         # INTERFAZ DE SIDEBAR
-
         with st.container(border=True):
             st.markdown("""## 📍 **Conocé tu situación actual**""")
             st.button("Ubicación actual", use_container_width=True)
 
         with st.container(border=True):
+            datos_dir = []
             st.markdown("""## 🗓️ **Consulta programada**""")
             input_destino = st.text_input("Recuerde solo ingresar solo **calle y altura:**")
+            franja_horaria = st.slider("¿En qué momento del día vas a concurrir?.",
+                                            value=(time(11, 30)))
             button_data = st.button(label="Buscar", icon=':material/touch_app:')
-            if button_data:
+            if button_data and input_destino:
                 location_data = geocode_address_with_retry(input_destino)
                 if location_data:
                     datos_dir = get_location_name_lat_lon(location_data)
                     st.write(f"Resultado: {datos_dir[0][0]}")
-                    st.session_state.selected_location = [float(datos_dir[1][0]), float(datos_dir[2][0])]
+                    st.info(f"Opta por ir a las: {franja_horaria.hour}")
                 else:
                     st.write("No se encontraron resultados")
             else:
                 button_data == False
-            dia = st.date_input("Seleccioná un día", datetime.date(2023, 11, 1))
-            franja_horaria = st.slider("¿En qué momento del día vas a concurrir?.",
-                                            value=(time(11, 30)))
-            
+            if datos_dir != [] and franja_horaria:
+                st.session_state.selected_hour = franja_horaria.hour
+                st.session_state.selected_location = [float(datos_dir[1][0]), float(datos_dir[2][0])]
+                st.session_state.selected_street = datos_dir[0][0]
             ##st.session_state.selected_location[_lat, _lon]
+
+
+    # CONTAINER MAIN MAP
     def container_main_map(self, m):
-            ## DATOS
-        #año, mes_actual, mes_anterior, fecha_min, fecha_max = self.clase_datos.get_contextual_time_series()
-
-        #lista_delitos = self.clase_datos.get_contextual_crimes()
-
         # INTERFAZ CENTRAL
         subtitulo_funcionamiento = st.markdown("""
                 ## 📝 ¿Cómo funciona?
                 """)
         col1, col2, col3 = st.columns(3)
-            #with col1:
-            #    st.markdown("## 📅 Rango temporal de datos  \n"
-            #                    "Nuestros análisis van a corresponder a los últimos **dos meses**, incluyendo: \n"  
-            #                    f"- **Mes actual:** {mes_actual} {str(año)} \n"  
-            #                    f"- **Mes anterior:** {mes_anterior} {str(año)} \n"  
-            #                    f"- **Rango:** {fecha_min} - {fecha_max}")
             
         with col1:
             st.markdown("""
@@ -154,7 +127,7 @@ class ModuloMap:
 
         with col2:
             st.markdown("""
-                - 🗓️ **Consulta programada:** Si necesitás ir a algún lugar en un día y hora particular, seleccioná esos parámetros en la barra lateral y obtené el informe.
+                - 🗓️ **Consulta programada:** Si necesitás ir a algún lugar en una hora particular, seleccioná esos parámetros en la barra lateral y obtené el informe.
                 """)
 
         with col3:
@@ -173,25 +146,7 @@ class ModuloMap:
                 - **Lista de delitos:** Delitos más frecuentes y su cantidad de hechos.
                 - **ÍNDICE DE PELIGROSIDAD:** Un indice de peligro basado en los algorítmos mejores entrenados de estudio criminalistico.
                 """)
-
-            
-            #with col3:
-            #    st.markdown("## 🚨 Nuestros delitos a analizar")
-            #    st.markdown('\n'.join([f"- {delito}" for delito in lista_delitos]))
-
-                
-                        
-                        ## ME GUSTARIA TENER AL LADO DE EL MARKWOWN ANTETIOR LA LISTA DE MIS DELITOS POR ITEMS PERO ARRIBA UN TITPO COMO ... NUESTROS DELITOS A ANALIZAR, (LA LISTA )
-                        #st.markdown(
-                        #            """
-                        #            ### Puntos clave:
-                        #            - Debemos tener en cuenta que en los horarios de la madrugada no hay tanta cantidad de delitos como en el resto del dia.
-                        #            - Esto no significa que sea menos peligroso, sinó que hay menos ciudadanos en la calle.
-                        #            
-                        #            Por ende si se cometen crimenes frente a mayor cantidad de ciudadanos presentes en ese horario quizás estemos frente a **un momento del día bastante peligroso**.
-                        #            """
-                        #        )
-
+        
         with st.expander("""🌍 **Experiencia visual: Seleccioná un punto en el mapa.**"""):
             with st.container(border=True):
                 map = st_folium(m, width="%100", height=500, use_container_width=True)
@@ -200,5 +155,50 @@ class ModuloMap:
                     _lon = map["last_clicked"]["lng"]
                     st.session_state.selected_location = [_lat, _lon]
                     st.rerun()
+
+    # CONTAINER INFORMATIVO PRE DASHBOARD
+    def container_informativo(self):
+        lista_delitos = self.clase_datos.get_contextual_crimes()
+        st.markdown("## 🚨 Nuestros delitos a analizar")
+        st.markdown('\n'.join([f"- {delito}" for delito in lista_delitos]))
+  
+        st.markdown(
+                    """
+                    ### Puntos clave:
+                    - Debemos tener en cuenta que en los horarios de la madrugada no hay tanta cantidad de delitos como en el resto del dia.
+                    - Esto no significa que sea menos peligroso, sinó que hay menos ciudadanos en la calle.
+                                    
+                    Por ende si se cometen crimenes frente a mayor cantidad de ciudadanos presentes en ese horario quizás estemos frente a **un momento del día bastante peligroso**.
+                    """)
+
+    #  DASHBOARD DEL DELITO        
+    def dashboard(self, _lat, _lon, hora):
+        comuna, barrio, peligrosidad = self.clase_datos.get_location_data(_lat, _lon, hora)
+        map_box, kpi_mes, kpi_semana, kpi_delito, kpi_peligrosidad, fig_delito, df_locations = self.clase_graficos.graph_dashboard_elements(peligrosidad, comuna, barrio, _lat, _lon, hora)
+        with st.container(border=True):
+            col1, col2 = st.columns([16, 10])
+            with col1:
+                st.markdown("### Indicadores clave (KPIs) - Hechos")
+                kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+                with kpi_col1:
+                    with st.container(border=True):
+                        st.plotly_chart(kpi_mes)
+                with kpi_col2:
+                    with st.container(border=True):
+                        st.plotly_chart(kpi_semana)
+                with kpi_col3:
+                    with st.container(border=True):
+                        st.plotly_chart(kpi_delito)
+                with st.container(border=True):
+                    st.info("Esta tabla contiene los sucedido en tu zona y horario seleccionado.")
+                    st.dataframe(df_locations, use_container_width=True, hide_index=True)
+                with st.container(border=True):
+                    st.plotly_chart(fig_delito, theme='streamlit')
+            with col2:
+                st.markdown("#### Mapa del delito")
+                with st.container(border=True):
+                    st.plotly_chart(kpi_peligrosidad)
+                with st.container(border=True):
+                    st.pydeck_chart(map_box, use_container_width=True, height=739)
 
     ## **LLEVAR MARCADOR AL MAPA LUEGO DE HABER TENIDO LA DIRECCION POR PARTE DEL BUSCADOR**
