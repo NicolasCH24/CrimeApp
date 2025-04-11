@@ -2,9 +2,6 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
 
-# TIEMPOS
-import time
-
 # MODULOS Y CLASES
 from Módulos.modulo_map import ModuloMap
 from Módulos.clase_graficos import Graficos
@@ -15,12 +12,25 @@ modulo_mapa = ModuloMap()
 # CLASES
 clase_graficos = Graficos()
 
+### INTERFAZ
+
+# HEADER
+st.markdown("""
+        <div style='display: flex; align-items: center; gap: 10px;'>
+            <img src="https://i.pinimg.com/originals/e7/14/98/e71498bc0ed791e366ace0ed2d52dd3b.png" alt="Logo BA" width="100"/>
+            <h2 style='margin: 0;'>Ciudad Autónoma de Buenos Aires</h2>
+        </div>
+        <hr style='border: 2px solid #336ACC;'/>
+    """, unsafe_allow_html=True)
+
+# SIDEBAR
 with st.sidebar:
     selected = option_menu('Menú', ['Mapa', 'Estadística',"Tabla personal"],
         icons=['map', 'bar-chart', 'table'], menu_icon='cast', default_index=0)
     
     mapa = modulo_mapa.container_select_data()
 
+# MAPA
 if selected == 'Mapa':
     # SESSIONS STATES
     if "selected_location" not in st.session_state:
@@ -31,13 +41,6 @@ if selected == 'Mapa':
 
     if "hide_informativa" not in st.session_state:
         st.session_state.hide_informativa = False
-
-    col1, col2 = st.columns([4, 10])
-    with col1:
-        st.image(
-            "C:/Users/20391117579/Dropbox/CrimeApp/Multimedia/image.png",  width=350)
-    with col2:
-        st.title("Ciudad Autónoma de Buenos Aires")
 
     # CONTAINER MODULO MAPA & DASHBOARD
     m = clase_graficos.folium_map()
@@ -52,6 +55,7 @@ if selected == 'Mapa':
     else:
         mapa = modulo_mapa.container_main_map(m)
 
+# ESTADISTICA
 elif selected == 'Estadística':
     st.subheader('Estadística')
     st.write("Estadística")
