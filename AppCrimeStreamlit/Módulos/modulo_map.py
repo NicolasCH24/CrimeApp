@@ -1,17 +1,9 @@
 # STREAMLIT
 import streamlit as st
 
-# DATOS
-import pandas as pd
-
-# REQUESTS
-import requests
-
 # MAPA - GRAFICOS
 from streamlit_folium import st_folium
-
-# TIEMPO
-import datetime
+from geopy import Nominatim
 
 # CLASES
 from Módulos.clase_datos import Datos
@@ -37,51 +29,32 @@ class ModuloMap:
         from datetime import time
 
         # RETORNO DE BUSQUEDA
-        def get_location_name_lat_lon(location_data):
-            nombre = []
-            lat = []
-            lon = []
-            datos_dir = []
-            for location in location_data:
-                nombre.append(location.get('display_name'))
-                lat.append(location.get('lat'))
-                lon.append(location.get('lon'))
-                datos_dir = [nombre, lat, lon]
-
-            return datos_dir
-        # METODO DE BUSQUEDA DE LOCALIZACIÓN
-        def geocode_address_with_retry(address, city='Caba', country='Argentina', retries=3):
-            import time
-            url = 'https://nominatim.openstreetmap.org/search'
-            params = {
-                    'street': address,
-                    'city': city,
-                    'country': country,
-                    'format': 'json',
-                    'limit': 3
-                }
-            headers = {
-                    'User-Agent': 'MiAplicacion/1.0 (nico.sp903@gmail.com)'
-                }
-                
-            for attempt in range(retries):
-                response = requests.get(url, params=params, headers=headers)
-                    
-                if response.status_code == 200:
-                    data = response.json()
-                    if data:
-                        return data
-                    else:
-                        print("No se encontraron resultados.")
-                        return None
-                elif response.status_code == 429:
-                    print("Se excedió el límite de solicitudes, reintentando...")
-                    time.sleep(1)
-                else:
-                    print(f"Error: {response.status_code}")
-                    return None
-            return None
+        @st.cache_resource()
+        def create_geolocator():
+            geolocator = Nominatim(user_agent="my-app", timeout=4)
+            return geolocator
             
+            # METODO DE BUSQUEDA DE LOCALIZACIÓN
+        def geocode_address_with_retry(address):
+            geolocator = create_geolocator()
+            if address:
+                try:
+                    response = geolocator.geocode(f"{address}, Ciudad Autónoma de Buenos Aires, Argentina", language='es_ESP', country_codes="AR", exactly_one=True)
+                except Exception as e:
+                    print("No se ha encontrado resultados.")
+
+                if response:
+                    location = response.address.split(",")[0] + "," + response.address.split(",")[2]
+                    latitude = response.latitude
+                    longitude = response.longitude
+                    datos_dir = [location, latitude, longitude]
+                    return datos_dir
+                else:
+                    mensaje = "No se han encontrado resultados"
+                    return mensaje
+            else:
+                mensaje = "Por favor indique una localización correspondiente."
+                return mensaje
 
         # INTERFAZ DE SIDEBAR
         with st.container(border=True):
@@ -96,10 +69,9 @@ class ModuloMap:
                                             value=(time(11, 30)))
             button_data = st.button(label="Buscar", icon=':material/touch_app:')
             if button_data and input_destino:
-                location_data = geocode_address_with_retry(input_destino)
-                if location_data:
-                    datos_dir = get_location_name_lat_lon(location_data)
-                    st.write(f"Resultado: {datos_dir[0][0]}")
+                datos_dir = geocode_address_with_retry(input_destino)
+                if datos_dir:
+                    st.write(f"Resultado: {datos_dir[0]}")
                     st.info(f"Opta por ir a las: {franja_horaria.hour}")
                 else:
                     st.write("No se encontraron resultados")
@@ -107,8 +79,8 @@ class ModuloMap:
                 button_data == False
             if datos_dir != [] and franja_horaria:
                 st.session_state.selected_hour = franja_horaria.hour
-                st.session_state.selected_location = [float(datos_dir[1][0]), float(datos_dir[2][0])]
-                st.session_state.selected_street = datos_dir[0][0]
+                st.session_state.selected_location = [float(datos_dir[1]), float(datos_dir[2])]
+                st.session_state.selected_street = datos_dir[0]
             ##st.session_state.selected_location[_lat, _lon]
 
 
@@ -173,32 +145,33 @@ class ModuloMap:
 
     #  DASHBOARD DEL DELITO        
     def dashboard(self, _lat, _lon, hora):
-        comuna, barrio, peligrosidad = self.clase_datos.get_location_data(_lat, _lon, hora)
-        map_box, kpi_mes, kpi_semana, kpi_delito, kpi_peligrosidad, fig_delito, df_locations = self.clase_graficos.graph_dashboard_elements(peligrosidad, comuna, barrio, _lat, _lon, hora)
-        with st.container(border=True):
-            col1, col2 = st.columns([16, 10])
-            with col1:
-                st.markdown("### Indicadores clave (KPIs) - Hechos")
-                kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
-                with kpi_col1:
+        with st.spinner("Generando dashboard..."):
+            comuna, barrio, peligrosidad = self.clase_datos.get_location_data(_lat, _lon, hora)
+            map_box, kpi_mes, kpi_semana, kpi_delito, kpi_peligrosidad, fig_delito, df_locations = self.clase_graficos.graph_dashboard_elements(peligrosidad, comuna, barrio, _lat, _lon, hora)
+            with st.container(border=True):
+                col1, col2 = st.columns([16, 10])
+                with col1:
+                    st.markdown("### Indicadores clave (KPIs) - Hechos")
+                    kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+                    with kpi_col1:
+                        with st.container(border=True):
+                            st.plotly_chart(kpi_mes)
+                    with kpi_col2:
+                        with st.container(border=True):
+                            st.plotly_chart(kpi_semana)
+                    with kpi_col3:
+                        with st.container(border=True):
+                            st.plotly_chart(kpi_delito)
                     with st.container(border=True):
-                        st.plotly_chart(kpi_mes)
-                with kpi_col2:
+                        st.info("Esta tabla contiene los sucedido en tu zona y horario seleccionado.")
+                        st.dataframe(df_locations, use_container_width=True, hide_index=True)
                     with st.container(border=True):
-                        st.plotly_chart(kpi_semana)
-                with kpi_col3:
+                        st.plotly_chart(fig_delito, theme='streamlit')
+                with col2:
+                    st.markdown("#### Mapa del delito")
                     with st.container(border=True):
-                        st.plotly_chart(kpi_delito)
-                with st.container(border=True):
-                    st.info("Esta tabla contiene los sucedido en tu zona y horario seleccionado.")
-                    st.dataframe(df_locations, use_container_width=True, hide_index=True)
-                with st.container(border=True):
-                    st.plotly_chart(fig_delito, theme='streamlit')
-            with col2:
-                st.markdown("#### Mapa del delito")
-                with st.container(border=True):
-                    st.plotly_chart(kpi_peligrosidad)
-                with st.container(border=True):
-                    st.pydeck_chart(map_box, use_container_width=True, height=739)
+                        st.plotly_chart(kpi_peligrosidad)
+                    with st.container(border=True):
+                        st.pydeck_chart(map_box, use_container_width=True, height=739)
 
     ## **LLEVAR MARCADOR AL MAPA LUEGO DE HABER TENIDO LA DIRECCION POR PARTE DEL BUSCADOR**

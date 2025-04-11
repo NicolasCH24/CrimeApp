@@ -19,9 +19,9 @@ from sqlalchemy import create_engine, text
 from contextlib import contextmanager
 from sqlalchemy.orm import sessionmaker
 
-# CONFIGURACION LOCA
-import locale
-locale.setlocale(locale.LC_TIME, 'es_ES')
+# CONFIGURACION LOCAL
+#import locale
+#locale.setlocale(locale.LC_TIME, 'es_ES')
 
 # KMEANS, D TREEG MODEL, SCALERS
 @st.cache_resource()
@@ -50,7 +50,6 @@ class Datos:
 				.format(host=self.hostname, db=self.dbname, user=self.uname, pw=self.pwd))
         
     def engine_mysql(self):
-        #modules["cx_Oracle"] = oracledb
         engine = create_engine(
             'mysql+pymysql://',
             connect_args = {
@@ -265,7 +264,6 @@ class Datos:
         # TODA LA INFORMACION DE ESTE DASHBOARD CORRESPONDE A LOS DELITOS DE LOS ULTIMOS TRES MESES
         # SI HAY HORA REALIZAMOS ESTE FILTRO
         if hora:
-            print(hora)
             new_location = _lat, _lon
             query = text("""
                 SELECT

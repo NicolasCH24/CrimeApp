@@ -4,9 +4,6 @@ import folium as fl
 import plotly.graph_objects as go
 import pydeck as pdk
 
-# TIEMPO
-from datetime import datetime
-
 # LOCALIZACION
 from Módulos.clase_datos import Datos
 
@@ -72,6 +69,7 @@ class Graficos:
         df_map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio, df_locations = self.clase_datos.get_dashboard_data(_lat, _lon, comuna, barrio, hora)
         df_bar = df_map_box
         df_map_box = df_map_box[['LATITUD', 'LONGITUD']][df_map_box['FRANJA_HORARIA'] == hora]
+
         # MAP BOX
         map_box = pdk.Deck(
             map_style='mapbox://styles/mapbox/light-v11',
@@ -83,144 +81,114 @@ class Graficos:
             ),
             layers=[
                 pdk.Layer(
-                    'HexagonLayer',
-                    data=df_map_box,
-                    get_position='[LONGITUD, LATITUD]',
-                    radius=20,
-                    elevation_scale=3,
-                    elevation_range=[0, 800],
+                    "GridLayer",
+                    df_map_box,
                     pickable=True,
                     extruded=True,
-                ),
-                pdk.Layer(
-                    'ScatterplotLayer',
-                    data=df_map_box,
+                    cell_size=100,
+                    elevation_scale=1,
                     get_position='[LONGITUD, LATITUD]',
-                    get_color='[200, 30, 0, 160]',
-                    get_radius=20,
                 ),
+                #pdk.Layer(
+                #    'ScatterplotLayer',
+                #    data=df_map_box,
+                #    get_position='[LONGITUD, LATITUD]',
+                #    get_color='[200, 30, 0, 160]',
+                #    get_radius=20,
+                #),
             ],
         )
+
         # KPI MES
         kpi_mes = go.Figure()
         kpi_mes.add_trace(go.Indicator(
-            mode = "number+delta",
-            value = tupla_mes[0],
-            title = {"text": "Mes actual - Mes anterior",
-                     "font": {"size": 14, "color": "white"}},
-            delta = {'reference':tupla_mes[1]}))
-        
+            mode="number+delta",
+            value=tupla_mes[0],
+            title={"text": "Mes actual - Mes anterior",
+                "font": {"size": 14, "color": "#0A122A"}},
+            delta={'reference': tupla_mes[1]}))
+
         kpi_mes.update_layout(
-            #grid={'rows': 0, 'columns': 0, 'pattern': "independent"},
             autosize=False,
             width=950,
             height=120,
-            margin=dict(
-                l=0,
-                r=0,
-                b=0,
-                t=30,
-                pad=4
-            ),
+            margin=dict(l=0, r=0, b=0, t=30, pad=4),
         )
-        
+
         # KPI SEMANA
         kpi_semana = go.Figure()
         kpi_semana.add_trace(go.Indicator(
-            mode = "number+delta",
-            value= tupla_semana[0],
-            title= {'text':"Semana actual - Semana anterior",
-                    "font": {"size": 14, "color": "white"}},
-            delta = {'reference':tupla_semana[1]}
+            mode="number+delta",
+            value=tupla_semana[0],
+            title={'text': "Semana actual - Semana anterior",
+                "font": {"size": 14, "color": "#0A122A"}},
+            delta={'reference': tupla_semana[1]}
         ))
 
         kpi_semana.update_layout(
-            #grid={'rows': 0, 'columns': 1, 'pattern': "independent"},
             autosize=False,
             width=950,
             height=120,
-            margin=dict(
-                l=0,
-                r=0,
-                b=0,
-                t=30,
-                pad=4
-            ),
+            margin=dict(l=0, r=0, b=0, t=30, pad=4),
         )
 
         # KPI DELITO PROMEDIO
         kpi_delito = go.Figure()
         kpi_delito.add_trace(go.Indicator(
             mode="number",
-            value = hechos_delito_promedio,
-            title = {'text':f"Delito promedio - {delito_promedio}",
-                     "font": {"size": 14, "color": "white"}},
+            value=hechos_delito_promedio,
+            title={'text': f"Delito promedio - {delito_promedio}",
+                "font": {"size": 14, "color": "#0A122A"}},
         ))
 
         kpi_delito.update_layout(
-            #grid={'rows': 0, 'columns': 0, 'pattern': "independent"},
             autosize=False,
             width=950,
             height=120,
-            margin=dict(
-                l=0,
-                r=0,
-                b=0,
-                t=30,
-                pad=4
-            ),
+            margin=dict(l=0, r=0, b=0, t=30, pad=4),
         )
 
         # KPI PELIGROSIDAD
         if peligrosidad <= 25:
-            color_barra = "rgba(255, 255, 153, 1)"  
+            color_barra = "rgba(255, 255, 153, 1)"
         elif peligrosidad <= 50:
-            color_barra = "rgba(255, 204, 102, 1)"  
+            color_barra = "rgba(255, 204, 102, 1)"
         elif peligrosidad <= 75:
             color_barra = "rgba(255, 140, 0, 1)"
         else:
             color_barra = "rgba(255, 0, 0, 1)"
 
-        # Crear la figura
         kpi_peligrosidad = go.Figure()
-
         kpi_peligrosidad.add_trace(go.Indicator(
             mode="number+gauge",
             value=peligrosidad,
-            title = {'text':"% Peligrosidad",
-                     "font": {"size": 14, "color": "white"}},
+            title={'text': "% Peligrosidad",
+                "font": {"size": 14, "color": "#0A122A"}},
             number={'suffix': " %",
-                    'font':{'size':20, 'color':'white'}}, 
+                    'font': {'size': 20, 'color': '#0A122A'}},
             gauge={
                 'shape': "bullet",
-                'axis': {'range': [0, 100], 'visible': False}, 
-                'bar': {'color': color_barra},  
-                'steps': [  
-                    {'range': [0, 25], 'color': "rgba(255, 255, 153, 1)"},  
-                    {'range': [25, 50], 'color': "rgba(255, 204, 102, 1)"}, 
-                    {'range': [50, 75], 'color': "rgba(255, 140, 0, 1)"}, 
-                    {'range': [75, 100], 'color': "rgba(255, 0, 0, 1)"}  
+                'axis': {'range': [0, 100], 'visible': False},
+                'bar': {'color': color_barra},
+                'steps': [
+                    {'range': [0, 25], 'color': "rgba(255, 255, 153, 1)"},
+                    {'range': [25, 50], 'color': "rgba(255, 204, 102, 1)"},
+                    {'range': [50, 75], 'color': "rgba(255, 140, 0, 1)"},
+                    {'range': [75, 100], 'color': "rgba(255, 0, 0, 1)"}
                 ],
             },
-            #domain={'x': [0.05, 0.5], 'y': [0.15, 0.35]} 
         ))
 
         kpi_peligrosidad.update_layout(
             autosize=False,
             width=950,
             height=120,
-            margin=dict(
-                l=100,
-                r=0,
-                b=0,
-                t=30,
-                pad=4),
-        
+            margin=dict(l=100, r=0, b=0, t=30, pad=4),
         )
-        # GRAFICO DE BARRAS APILADAS
-        df_grouped = df_bar.groupby(['TIPO_DELITO_DESC', 'FECHA']).agg({'CONTACTO_ID':'count'}).rename(columns={'CONTACTO_ID':'HECHOS'})
-        df_grouped_totals = df_grouped.groupby('TIPO_DELITO_DESC')['HECHOS'].sum().reset_index()
 
+        # BARRAS APILADAS
+        df_grouped = df_bar.groupby(['TIPO_DELITO_DESC', 'FECHA']).agg({'CONTACTO_ID': 'count'}).rename(columns={'CONTACTO_ID': 'HECHOS'})
+        df_grouped_totals = df_grouped.groupby('TIPO_DELITO_DESC')['HECHOS'].sum().reset_index()
         df_grouped_totals = df_grouped_totals.sort_values(by='HECHOS', ascending=True)
 
         x_data = df_grouped_totals['HECHOS']
@@ -231,14 +199,12 @@ class Graficos:
 
         def get_gradient_color(value, min_val, max_val):
             ratio = (value - min_val) / (max_val - min_val) if max_val > min_val else 0
-            r = int(255 - 30 * ratio)  
-            g = int(255 - 120 * ratio) 
-            b = int(200 - 150 * ratio)  
+            r = int(255 - 30 * ratio)
+            g = int(255 - 120 * ratio)
+            b = int(200 - 150 * ratio)
             return f'rgb({r},{g},{b})'
 
-        # Crear figura
         fig_delitos = go.Figure()
-
         for x, y in zip(x_data, y_data):
             fig_delitos.add_trace(go.Bar(
                 x=[x],
@@ -246,13 +212,12 @@ class Graficos:
                 text=[x],
                 orientation='h',
                 marker=dict(
-                    color=get_gradient_color(x, min_val, max_val),  # Aplicar degradado
+                    color=get_gradient_color(x, min_val, max_val),
                     line=dict(color='white', width=1)
                 ),
-                textfont=dict(color='black')  # Fuente blanca
+                textfont=dict(color='#0A122A')
             ))
 
-        # Configuración de diseño
         fig_delitos.update_layout(
             height=400,
             xaxis=dict(
@@ -260,16 +225,16 @@ class Graficos:
                 showline=False,
                 zeroline=False,
                 title='Cantidad de Hechos',
-                title_font=dict(color='white'),
-                tickfont=dict(color='white')
+                title_font=dict(color='#0A122A'),
+                tickfont=dict(color='#0A122A')
             ),
             yaxis=dict(
                 showgrid=False,
                 showline=False,
                 zeroline=False,
                 title='Tipo de Delito',
-                title_font=dict(color='white'),
-                tickfont=dict(color='white'),
+                title_font=dict(color='#0A122A'),
+                tickfont=dict(color='#0A122A'),
                 categoryorder='total ascending'
             ),
             barmode='stack',
