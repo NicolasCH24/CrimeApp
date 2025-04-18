@@ -4,10 +4,12 @@ from streamlit_option_menu import option_menu
 
 # MODULOS Y CLASES
 from Módulos.modulo_map import ModuloMap
+from Módulos.modulo_estadistica import ModuloEstadistica
 from Módulos.clase_graficos import Graficos
 
 # MODULOS
 modulo_mapa = ModuloMap()
+modulo_estadistica = ModuloEstadistica()
 
 # CLASES
 clase_graficos = Graficos()
@@ -27,8 +29,6 @@ st.markdown("""
 with st.sidebar:
     selected = option_menu('Menú', ['Mapa', 'Estadística',"Tabla personal"],
         icons=['map', 'bar-chart', 'table'], menu_icon='cast', default_index=0)
-    
-    mapa = modulo_mapa.container_select_data()
 
 # MAPA
 if selected == 'Mapa':
@@ -41,6 +41,9 @@ if selected == 'Mapa':
 
     if "hide_informativa" not in st.session_state:
         st.session_state.hide_informativa = False
+
+    with st.sidebar:
+        mapa = modulo_mapa.container_select_data()
 
     # CONTAINER MODULO MAPA & DASHBOARD
     m = clase_graficos.folium_map()
@@ -57,6 +60,11 @@ if selected == 'Mapa':
 
 # ESTADISTICA
 elif selected == 'Estadística':
-    st.subheader('Estadística')
-    st.write("Estadística")
-# CONTAINER ESTADISTICA
+# CONTAINER FILTROS
+    df_filtered = modulo_estadistica.container_select_filter()
+
+# CONTAINER DASHBOARD
+    if df_filtered is not None and df_filtered.empty == False:
+        dashboard = modulo_estadistica.container_dashboard_estadistico(df_filtered)
+    else:
+        st.warning("Aplique los filtros correspondientes o haga clic en **Actualizar** para obtener el informe.")
