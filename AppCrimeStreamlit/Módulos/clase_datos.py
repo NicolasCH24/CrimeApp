@@ -1,5 +1,6 @@
 # DATOS & TIEMPO
 import pandas as pd
+import numpy as np
 from datetime import datetime
 import pytz
 
@@ -19,11 +20,7 @@ from sqlalchemy import create_engine, text
 from contextlib import contextmanager
 from sqlalchemy.orm import sessionmaker
 
-# CONFIGURACION LOCAL
-#import locale
-#locale.setlocale(locale.LC_TIME, 'es_ES')
-
-# KMEANS, D TREEG MODEL, SCALERS
+# RECURSOS DE CACHE
 @st.cache_resource()
 def load_models():
     kmeans = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/kmeans.joblib')
@@ -31,13 +28,11 @@ def load_models():
     scaler_d_tree = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/scaler_d_tree.joblib')
     d_tree_model = load('C:/Users/20391117579/Dropbox/CrimeApp/Data Science Lab/Modelos/d_tree_reg.joblib')
     return kmeans, scaler_kmeans, scaler_d_tree, d_tree_model
-
-kmeans, scaler, scaler_d_tree, d_tree_model = load_models()
         
 class Datos:
     ### SQL & ML
-    def __init__(self):
-        self.scaler = scaler
+    def __init__(self, kmeans, scaler_kmeans, scaler_d_tree, d_tree_model):
+        self.scaler = scaler_kmeans
         self.kmeans = kmeans
         self.scaler_d_tree = scaler_d_tree
         self.d_tree_model = d_tree_model
@@ -48,7 +43,7 @@ class Datos:
 
         self.engine = create_engine("mysql+pymysql://{user}:{pw}@{host}/{db}"
 				.format(host=self.hostname, db=self.dbname, user=self.uname, pw=self.pwd))
-        
+            
     def engine_mysql(self):
         engine = create_engine(
             'mysql+pymysql://',
@@ -247,9 +242,8 @@ class Datos:
         return peligrosidad
     
     def get_location_data(self, lat, lon, hora):
-        clase_datos = Datos()
         # Localizacion actual
-        df_data = clase_datos.get_current_location(lat, lon, hora)
+        df_data = self.get_current_location(lat, lon, hora)
         # Peligrosidad 
         peligrosidad = self.get_hazard_index(df_data)
         # Datos
@@ -590,3 +584,117 @@ class Datos:
 
             return df_map_box, tupla_mes, tupla_semana, delito_promedio, hechos_delito_promedio, df_locations
         
+    ### DATOS ESTADÍSTICA
+    # 1 - OBTENEMOS TODOS LOS DATOS
+    # 2 - GENERAMOS UN FILTRO
+    # 3 - LUEGO CREAMOS LOS DATOS DE CADA TARJETA
+    @st.cache_data()
+    def get_all_data(_self):
+        query = text("""
+                    SELECT
+                        fct.FECHA,
+                        fct.FRANJA_HORARIA,
+                        fct.CONTACTO_ID,
+                        dimc.COMUNA_DESC,
+                        dimb.BARRIO_DESC,
+                        dtd.TIPO_DELITO_DESC
+                    FROM
+                        FCT_HECHOS fct
+                    INNER JOIN
+                        DIM_COMUNAS dimc
+                    ON fct.COMUNA_KEY = dimc.COMUNA_KEY
+                    INNER JOIN
+                        DIM_BARRIOS dimb
+                    ON fct.BARRIO_KEY = dimb.BARRIO_KEY
+                    INNER JOIN
+                        DIM_TIPO_DELITO dtd
+                    ON fct.TIPO_DELITO_KEY = dtd.TIPO_DELITO_KEY
+                    """)
+        try:
+            with _self.db_session() as connection:
+                result = connection.execute(query)
+                data = result.fetchall()
+
+            df_data = pd.DataFrame(data)
+
+            ## TRANSFORMACIONES
+            df_data['FECHA'] = pd.to_datetime(df_data['FECHA'])
+            df_data['AÑO'] = df_data['FECHA'].dt.year
+            df_data['MES_NUM'] = df_data['FECHA'].dt.month
+            df_data['MES'] = df_data['FECHA'].dt.month_name(locale='es')
+
+            return df_data
+        
+        except Exception as e:
+            print(f"Error al obtener consulta de datos general: {e}")
+
+    
+    def get_filtered_df(self, df_data, año, mes, comuna, barrio, delito, franja_horaria):
+        try:
+            hora_min = np.min(franja_horaria)
+            hora_max = np.max(franja_horaria) + 1
+            horarios = tuple(np.arange(start=hora_min, stop=hora_max, step=1))
+            if df_data is not None and df_data.empty == False:
+                df_filtered = df_data
+                print("Fuente de datos correcta.")
+                dict_filtro = {'AÑO':año, 'MES':mes, 'COMUNA':comuna, 'BARRIO':barrio, 'DELITO':delito, 'FRANJA_HORARIA':horarios}
+                clean_dict = {k: dict_filtro[k] for k in dict_filtro if not pd.isna(dict_filtro[k])}
+            else:
+                print("Fuente de datos vacía o inexistente.")
+
+            for i in clean_dict.items():
+                if i[0] == 'AÑO':
+                    df_filtered = df_filtered[df_filtered['AÑO'] == i[1]]
+                elif i[0] == 'MES':
+                    df_filtered = df_filtered[df_filtered['MES_NUM'] == i[1]]
+                elif i[0] == 'COMUNA':
+                    df_filtered = df_filtered[df_filtered['COMUNA_DESC'] == i[1]]
+                elif i[0] == 'BARRIO':
+                    df_filtered = df_filtered[df_filtered['BARRIO_DESC'] == i[1]]
+                elif i[0] == 'DELITO':
+                    df_filtered = df_filtered[df_filtered['TIPO_DELITO_DESC'] == i[1]]
+                elif i[0] == 'FRANJA_HORARIA':
+                    df_filtered = df_filtered[df_filtered['FRANJA_HORARIA'].isin(i[1])]
+
+            return df_filtered
+
+        except Exception as e:
+            mensaje = f"Error al generar el filtro global de datos: {e}"
+            return mensaje
+        
+    def get_stat_kpis(self, df_filtered):
+        # CANTIDAD DE HECHOS
+        hechos = df_filtered['CONTACTO_ID'].count()
+        
+        # DELITO MAS FRECUENTE
+        delito_top = df_filtered.groupby('TIPO_DELITO_DESC')['CONTACTO_ID'].count().sort_values(ascending=False).head(1)
+
+        # COMUNA CON MAS HECHOS
+        comuna_top = df_filtered.groupby('COMUNA_DESC')['CONTACTO_ID'].count().sort_values(ascending=False).head(1)
+
+        # BARRIO CON MAS HECHOS
+        barrio_top = df_filtered.groupby('BARRIO_DESC')['CONTACTO_ID'].count().sort_values(ascending=False).head(1)
+
+        return hechos, delito_top, comuna_top, barrio_top
+
+    def get_stat_lines(self, df_filtered):
+        # TRANSFORMACIONES
+        df_filtered['PERIODO'] = df_filtered['FECHA'].dt.to_period('M')
+        df_lines = df_filtered.groupby('PERIODO')['CONTACTO_ID'].count().reset_index()
+        df_lines['PERIODO'] = df_lines['PERIODO'].dt.to_timestamp()
+
+        return df_lines
+
+    def get_stat_grilla(self):
+        # GRILLA HORA/DIA
+        pass
+
+    def get_stat_bar_comuna(self):
+        # BARRAS HECHOS POR COMUNA
+        pass
+
+    def get_stat_map(self):
+        # HECHOS POR BARRIOS
+        pass
+        
+

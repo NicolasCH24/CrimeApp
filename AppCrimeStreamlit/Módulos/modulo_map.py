@@ -1,6 +1,9 @@
 # STREAMLIT
 import streamlit as st
 
+# TIEMPO
+from datetime import time
+
 # MAPA - GRAFICOS
 from streamlit_folium import st_folium
 from geopy import Nominatim
@@ -21,68 +24,19 @@ if "selected_hour" not in st.session_state:
 
 class ModuloMap:
     def __init__(self):
-        self.clase_datos = Datos()
+        kmeans, scaler_kmeans, scaler_d_tree, d_tree_model = self.get_models()
+        self.clase_datos = Datos(kmeans=kmeans, scaler_kmeans=scaler_kmeans, scaler_d_tree=scaler_d_tree, d_tree_model=d_tree_model)
         self.clase_graficos = Graficos()
 
-    # CONTAINER SELECTORES
-    def container_select_data(self):
-        from datetime import time
+    def get_models(self):
+        modelos = st.session_state.get("modelos", None)
+        if modelos is None:
+            st.error("Modelos no cargados. Volvé al inicio.")
+            st.stop()
 
-        # RETORNO DE BUSQUEDA
-        @st.cache_resource()
-        def create_geolocator():
-            geolocator = Nominatim(user_agent="my-app", timeout=4)
-            return geolocator
-            
-            # METODO DE BUSQUEDA DE LOCALIZACIÓN
-        def geocode_address_with_retry(address):
-            geolocator = create_geolocator()
-            if address:
-                try:
-                    response = geolocator.geocode(f"{address}, Ciudad Autónoma de Buenos Aires, Argentina", language='es_ESP', country_codes="AR", exactly_one=True)
-                except Exception as e:
-                    print("No se ha encontrado resultados.")
+        kmeans, scaler_kmeans, scaler_d_tree, d_tree_model = modelos
 
-                if response:
-                    location = response.address.split(",")[0] + "," + response.address.split(",")[2]
-                    latitude = response.latitude
-                    longitude = response.longitude
-                    datos_dir = [location, latitude, longitude]
-                    return datos_dir
-                else:
-                    mensaje = "No se han encontrado resultados"
-                    return mensaje
-            else:
-                mensaje = "Por favor indique una localización correspondiente."
-                return mensaje
-
-        # INTERFAZ DE SIDEBAR
-        with st.container(border=True):
-            st.markdown("""## 📍 **Conocé tu situación actual**""")
-            st.button("Ubicación actual", use_container_width=True)
-
-        with st.container(border=True):
-            datos_dir = []
-            st.markdown("""## 🗓️ **Consulta programada**""")
-            input_destino = st.text_input("Recuerde solo ingresar solo **calle y altura:**")
-            franja_horaria = st.slider("¿En qué momento del día vas a concurrir?.",
-                                            value=(time(11, 30)))
-            button_data = st.button(label="Buscar", icon=':material/touch_app:')
-            if button_data and input_destino:
-                datos_dir = geocode_address_with_retry(input_destino)
-                if datos_dir:
-                    st.write(f"Resultado: {datos_dir[0]}")
-                    st.info(f"Opta por ir a las: {franja_horaria.hour}")
-                else:
-                    st.write("No se encontraron resultados")
-            else:
-                button_data == False
-            if datos_dir != [] and franja_horaria:
-                st.session_state.selected_hour = franja_horaria.hour
-                st.session_state.selected_location = [float(datos_dir[1]), float(datos_dir[2])]
-                st.session_state.selected_street = datos_dir[0]
-            ##st.session_state.selected_location[_lat, _lon]
-
+        return kmeans, scaler_kmeans, scaler_d_tree, d_tree_model
 
     # CONTAINER MAIN MAP
     def container_main_map(self, m):
@@ -128,6 +82,62 @@ class ModuloMap:
                     st.session_state.selected_location = [_lat, _lon]
                     st.rerun()
 
+    # CONTAINER SELECTORES
+    def container_select_data(self):
+        # RETORNO DE BUSQUEDA
+        @st.cache_resource()
+        def create_geolocator():
+            geolocator = Nominatim(user_agent="my-app", timeout=4)
+            return geolocator
+            
+        # METODO DE BUSQUEDA DE LOCALIZACIÓN
+        def geocode_address_with_retry(address):
+            geolocator = create_geolocator()
+            if address:
+                try:
+                    response = geolocator.geocode(f"{address}, Ciudad Autónoma de Buenos Aires, Argentina", language='es_ESP', country_codes="AR", exactly_one=True)
+                except Exception as e:
+                    print(f"No se ha encontrado resultados: {e}")
+
+                if response and response != "None" and response is not None:
+                    location = response.address.split(",")[1] + ", " + response.address.split(",")[0] + "," + response.address.split(",")[3]
+                    latitude = response.latitude
+                    longitude = response.longitude
+                    datos_dir = [location, latitude, longitude]
+                    return datos_dir
+                else:
+                    mensaje = "No se han encontrado resultados"
+                    return mensaje
+            else:
+                mensaje = "Por favor indique una localización correspondiente."
+                return mensaje
+
+        # INTERFAZ DE SIDEBAR
+        with st.container(border=True):
+            st.markdown("""## 📍 **Conocé tu situación actual**""")
+            st.button("Ubicación actual", use_container_width=True)
+
+        with st.container(border=True):
+            datos_dir = []
+            st.markdown("""## 🗓️ **Consulta programada**""")
+            input_destino = st.text_input("Recuerde solo ingresar solo **calle y altura:**")
+            franja_horaria = st.slider("¿En qué momento del día vas a concurrir?.", 0, 23, 9)
+            button_data = st.button(label="Buscar", icon=':material/touch_app:')
+            if button_data and input_destino and franja_horaria:
+                datos_dir = geocode_address_with_retry(input_destino)
+                if isinstance(datos_dir, list):
+                    st.write(f"Resultado: {datos_dir[0]}")
+                    st.info(f"Opta por ir a las: {franja_horaria}")
+                else:
+                    st.warning(datos_dir)
+            else:
+                button_data == False
+            #if datos_dir != [] and franja_horaria:
+            #    st.session_state.selected_hour = franja_horaria.hour
+            #    st.session_state.selected_location = [float(datos_dir[1]), float(datos_dir[2])]
+            #    st.session_state.selected_street = datos_dir[0]
+            ##st.session_state.selected_location[_lat, _lon]
+    
     # CONTAINER INFORMATIVO PRE DASHBOARD
     def container_informativo(self):
         lista_delitos = self.clase_datos.get_contextual_crimes()
@@ -143,7 +153,9 @@ class ModuloMap:
                     Por ende si se cometen crimenes frente a mayor cantidad de ciudadanos presentes en ese horario quizás estemos frente a **un momento del día bastante peligroso**.
                     """)
 
-    #  DASHBOARD DEL DELITO        
+    #  DASHBOARD DEL DELITO
+    @staticmethod
+    @st.cache_resource()        
     def dashboard(self, _lat, _lon, hora):
         with st.spinner("Generando dashboard..."):
             comuna, barrio, peligrosidad = self.clase_datos.get_location_data(_lat, _lon, hora)

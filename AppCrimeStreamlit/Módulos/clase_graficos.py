@@ -1,3 +1,5 @@
+# STREAMLIT
+import streamlit as st
 
 # MAPA - GRAFICOS
 import folium as fl
@@ -56,9 +58,21 @@ class AddMarkerOnClick(MacroElement):
 
 class Graficos:
     def __init__(self):
-        self.clase_datos = Datos()
+        kmeans, scaler_kmeans, scaler_d_tree, d_tree_model = self.get_models()
+        self.clase_datos = Datos(kmeans=kmeans, scaler_kmeans=scaler_kmeans, scaler_d_tree=scaler_d_tree, d_tree_model=d_tree_model)
 
     # FUNCIONALIDADES
+    def get_models(self):
+        modelos = st.session_state.get("modelos", None)
+        if modelos is None:
+            st.error("Modelos no cargados. Volvé al inicio.")
+            st.stop()
+
+        kmeans, scaler_kmeans, scaler_d_tree, d_tree_model = modelos
+
+        return kmeans, scaler_kmeans, scaler_d_tree, d_tree_model
+    
+    ### MODULO MAP
 
     def folium_map(self):
         m = fl.Map(location=[-34.6083, -58.3712], zoom_start=12)
@@ -243,3 +257,72 @@ class Graficos:
         )
 
         return map_box, kpi_mes, kpi_semana, kpi_delito, kpi_peligrosidad, fig_delitos, df_locations
+    
+
+    ### MODULO ESTADISTICA
+    def graph_estadistica_elements(self, df_filtered):
+        hechos, delito_top, comuna_top, barrio_top = self.clase_datos.get_stat_kpis(df_filtered)
+        df_lines = self.clase_datos.get_stat_lines(df_filtered)
+
+        ## KPIS
+        # ESTILO GENERAL LAYOUT
+        common_layout = dict(
+            width=950,
+            height=120,
+            autosize=False,
+            margin=dict(l=0, r=0, b=0, t=30, pad=4),
+            plot_bgcolor="#d1d8e0",
+            font=dict(color="#101e37", family="Open Sans, sans-serif")
+        )
+
+        # Estilo general de los números
+        common_number_style = dict(
+            font={'color': '#101e37', 'size': 36, 'family': "Open Sans, sans-serif"},
+            valueformat=",d"
+        )
+
+        # HECHOS
+        fig_kpi1 = go.Figure()
+        fig_kpi1.add_trace(go.Indicator(mode="number", value=hechos, number=common_number_style))
+        fig_kpi1.update_layout(title=dict(text="Hechos", font=dict(size=15, color="#101e37", family="Open Sans, sans-serif")), **common_layout)
+
+        # COMUNA TOP
+        fig_kpi2 = go.Figure()
+        fig_kpi2.add_trace(go.Indicator(mode="number", value=comuna_top.values[0], number=common_number_style))
+        fig_kpi2.update_layout(title=dict(text=f"Comuna Top - {comuna_top.index[0]}", font=dict(size=15, color="#101e37", family="Open Sans, sans-serif")), **common_layout)
+
+        # BARRIO TOP
+        fig_kpi3 = go.Figure()
+        fig_kpi3.add_trace(go.Indicator(mode="number", value=barrio_top.values[0], number=common_number_style))
+        fig_kpi3.update_layout(title=dict(text=f"Barrio Top - {barrio_top.index[0]}", font=dict(size=15, color="#101e37", family="Open Sans, sans-serif")), **common_layout)
+
+        # DELITO TOP
+        fig_kpi4 = go.Figure()
+        fig_kpi4.add_trace(go.Indicator(mode="number", value=delito_top.values[0], number=common_number_style))
+        fig_kpi4.update_layout(title=dict(text=f"Delito Top - {delito_top.index[0]}", font=dict(size=15, color="#101e37", family="Open Sans, sans-serif")), **common_layout)
+
+        # LINES
+        fig_line = go.Figure()
+
+        fig_line.add_trace(go.Scatter(
+            x=df_lines['PERIODO'],
+            y=df_lines['CONTACTO_ID'],
+            mode='lines+markers',
+            name='Cantidad de hechos'
+        ))
+
+        fig_line.update_layout(
+            title='Cantidad de hechos por periódo',
+            xaxis=dict(
+                title='Periódo',
+                tickformat='%Y-%m' 
+            ),
+            yaxis=dict(
+                title='Cantidad de hechos'
+            ),
+            autosize=True,
+            plot_bgcolor='white'
+        )
+
+        return fig_kpi1, fig_kpi2, fig_kpi3, fig_kpi4, fig_line
+        
